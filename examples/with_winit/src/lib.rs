@@ -14,6 +14,7 @@
 //
 // Also licensed under MIT license, at your choice.
 
+use std::collections::HashSet;
 use std::time::Instant;
 
 use anyhow::Result;
@@ -34,6 +35,7 @@ use winit::{
 
 #[cfg(not(target_arch = "wasm32"))]
 mod hot_reload;
+mod multi_touch;
 
 #[derive(Parser, Debug)]
 #[command(about, long_about = None, bin_name="cargo run -p with_winit --")]
@@ -79,6 +81,9 @@ fn run(
     let mut simple_text = SimpleText::new();
     let start = Instant::now();
 
+    let mut touch_state = multi_touch::TouchState::new();
+    let mut navigation_fingers = HashSet::new();
+
     let mut transform = Affine::IDENTITY;
     let mut mouse_down = false;
     let mut prior_position: Option<Vec2> = None;
@@ -110,16 +115,30 @@ fn run(
                             Some(VirtualKeyCode::Escape) => {
                                 *control_flow = ControlFlow::Exit;
                             }
-                            Some(VirtualKeyCode::NavigateBackward) => {
-                                scene_ix = scene_ix.saturating_sub(1);
-                            }
                             _ => {}
                         }
                     }
                 }
-                WindowEvent::Touch(t) => {
-                    if t.phase == TouchPhase::Started {
-                        scene_ix = scene_ix.saturating_add(1)
+                WindowEvent::Touch(touch) => {
+                    if touch.location.y > render_state.surface.config.height as f64 - 400. {
+                        match touch.phase {
+                            TouchPhase::Started => {
+                                navigation_fingers.insert(touch.id);
+                                if touch.location.x < render_state.surface.config.width as f64 / 2.
+                                {
+                                    scene_ix = scene_ix.saturating_sub(1);
+                                } else {
+                                    scene_ix = scene_ix.saturating_add(1);
+                                }
+                            }
+                            TouchPhase::Ended | TouchPhase::Cancelled => {
+                                navigation_fingers.remove(&touch.id);
+                            }
+                            TouchPhase::Moved => (),
+                        }
+                    }
+                    if !navigation_fingers.contains(&touch.id) {
+                        touch_state.add_event(touch);
                     }
                 }
                 WindowEvent::Resized(size) => {
@@ -167,6 +186,18 @@ fn run(
             }
         }
         Event::MainEventsCleared => {
+            touch_state.end_frame();
+            let touch_info = touch_state.info();
+            if let Some(touch_info) = touch_info {
+                let centre = Vec2::new(touch_info.zoom_centre.x, touch_info.zoom_centre.y);
+                transform = Affine::translate(touch_info.translation_delta)
+                    * Affine::translate(centre)
+                    * Affine::scale(touch_info.zoom_delta)
+                    * Affine::rotate(touch_info.rotation_delta)
+                    * Affine::translate(-centre)
+                    * transform;
+            }
+
             if let Some(render_state) = &mut render_state {
                 render_state.window.request_redraw();
             }
