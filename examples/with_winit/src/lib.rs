@@ -250,6 +250,7 @@ fn run(
         },
         Event::Suspended => {
             render_state = None;
+            *control_flow = ControlFlow::Wait;
         }
         Event::Resumed => {
             #[cfg(target_arch = "wasm32")]
@@ -269,6 +270,7 @@ fn run(
                     window,
                     surface,
                 });
+                *control_flow = ControlFlow::Poll;
             }
         }
         _ => {}
@@ -354,7 +356,9 @@ use winit::platform::android::activity::AndroidApp;
 fn android_main(app: AndroidApp) {
     use winit::platform::android::EventLoopBuilderExtAndroid;
 
-    android_logger::init_once(android_logger::Config::default().with_min_level(log::Level::Trace));
+    android_logger::init_once(
+        android_logger::Config::default().with_max_level(log::LevelFilter::Warn),
+    );
 
     let event_loop = EventLoopBuilder::with_user_event()
         .with_android_app(app)
