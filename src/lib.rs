@@ -54,10 +54,10 @@ pub struct Renderer {
 
 impl Renderer {
     /// Creates a new renderer for the specified device.
-    pub fn new(device: &Device) -> Result<Self> {
+    pub fn new(device: &Device, surface_format: TextureFormat) -> Result<Self> {
         let mut engine = Engine::new();
         let shaders = shaders::full_shaders(device, &mut engine)?;
-        let blit = BlitPipeline::new(device, TextureFormat::Rgba8Unorm);
+        let blit = BlitPipeline::new(device, surface_format);
         Ok(Self {
             engine,
             shaders,
@@ -196,7 +196,8 @@ impl Renderer {
                 return Err("channel was closed".into());
             }
             let mapped = buf_slice.get_mapped_range();
-            println!("{:?}", bytemuck::cast_slice::<_, u32>(&mapped));
+            let _ = mapped;
+            // println!("{:?}", bytemuck::cast_slice::<_, u32>(&mapped));
         }
         // TODO: apply logic to determine whether we need to rerun coarse, and also
         // allocate the blend stack as needed.
