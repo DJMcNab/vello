@@ -212,7 +212,7 @@ fn run(
             }
         }
         Event::RedrawRequested(_) => {
-            let Some(render_state) =&mut  render_state else { return };
+            let Some(render_state) = &mut render_state else { return };
             let width = render_state.surface.config.width;
             let height = render_state.surface.config.height;
             let device_handle = &render_cx.devices[render_state.surface.dev_id];
@@ -323,6 +323,7 @@ fn run(
                     renderers.resize_with(render_cx.devices.len(), || None);
                     let id = render_state.surface.dev_id;
                     renderers[id].get_or_insert_with(|| {
+                        eprintln!("Creating renderer {id}");
                         Renderer::new(&render_cx.devices[id].device, render_state.surface.format)
                             .expect("Could create renderer")
                     });
