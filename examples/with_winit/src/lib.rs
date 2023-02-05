@@ -33,7 +33,7 @@ use winit::{
     window::Window,
 };
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
 mod hot_reload;
 mod multi_touch;
 
@@ -56,7 +56,6 @@ struct Args {
 }
 
 struct RenderState {
-    renderer: Renderer,
     window: Window,
     surface: RenderSurface,
 }
@@ -69,13 +68,21 @@ fn run(
     #[cfg(target_arch = "wasm32")] render_state: RenderState,
 ) {
     use winit::{event::*, event_loop::ControlFlow};
+    let mut renderers: Vec<Option<Renderer>> = vec![];
     #[cfg(not(target_arch = "wasm32"))]
     let mut render_cx = render_cx;
     #[cfg(not(target_arch = "wasm32"))]
     let mut render_state = None::<RenderState>;
     #[cfg(target_arch = "wasm32")]
-    let mut render_state = Some(render_state);
-
+    let mut render_state = {
+        renderers.resize_with(render_cx.devices.len(), || None);
+        let id = render_state.surface.dev_id;
+        renderers[id] = Some(
+            Renderer::new(&render_cx.devices[id].device, render_state.surface.format)
+                .expect("Could create renderer"),
+        );
+        Some(render_state)
+    };
     let mut scene = Scene::new();
     let mut fragment = SceneFragment::new();
     let mut simple_text = SimpleText::new();
@@ -124,10 +131,12 @@ fn run(
                         match touch.phase {
                             TouchPhase::Started => {
                                 navigation_fingers.insert(touch.id);
-                                if touch.location.x < render_state.surface.config.width as f64 / 2.
+                                if touch.location.x < render_state.surface.config.width as f64 / 3.
                                 {
                                     scene_ix = scene_ix.saturating_sub(1);
-                                } else {
+                                } else if touch.location.x
+                                    > 2. * render_state.surface.config.width as f64 / 3.
+                                {
                                     scene_ix = scene_ix.saturating_add(1);
                                 }
                             }
@@ -244,22 +253,26 @@ fn run(
             {
                 vello::block_on_wgpu(
                     &device_handle.device,
-                    render_state.renderer.render_to_surface_async(
-                        &device_handle.device,
-                        &device_handle.queue,
-                        &scene,
-                        &surface_texture,
-                        width,
-                        height,
-                    ),
+                    renderers[render_state.surface.dev_id]
+                        .as_mut()
+                        .unwrap()
+                        .render_to_surface_async(
+                            &device_handle.device,
+                            &device_handle.queue,
+                            &scene,
+                            &surface_texture,
+                            width,
+                            height,
+                        ),
                 )
                 .expect("failed to render to surface");
             }
             // Note: in the wasm case, we're currently not running the robust
             // pipeline, as it requires more async wiring for the readback.
             #[cfg(target_arch = "wasm32")]
-            render_state
-                .renderer
+            renderers[render_state.surface.dev_id]
+                .as_mut()
+                .unwrap()
                 .render_to_surface(
                     &device_handle.device,
                     &device_handle.queue,
@@ -273,13 +286,16 @@ fn run(
             device_handle.device.poll(wgpu::Maintain::Poll);
         }
         Event::UserEvent(event) => match event {
-            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
             UserEvent::HotReload => {
                 let Some(render_state) = &mut render_state else { return };
                 let device_handle = &render_cx.devices[render_state.surface.dev_id];
                 eprintln!("==============\nReloading shaders");
                 let start = Instant::now();
-                let result = render_state.renderer.reload_shaders(&device_handle.device);
+                let result = renderers[render_state.surface.dev_id]
+                    .as_mut()
+                    .unwrap()
+                    .reload_shaders(&device_handle.device);
                 // We know that the only async here is actually sync, so we just block
                 match pollster::block_on(result) {
                     Ok(_) => eprintln!("Reloading took {:?}", start.elapsed()),
@@ -302,13 +318,16 @@ fn run(
                 let surface_future = render_cx.create_surface(&window, size.width, size.height);
                 // We need to block here, in case a Suspended event appeared
                 let surface = pollster::block_on(surface_future);
-                let device_handle = &render_cx.devices[surface.dev_id];
-                let renderer = Renderer::new(&device_handle.device, surface.format).unwrap();
-                render_state = Some(RenderState {
-                    renderer,
-                    window,
-                    surface,
-                });
+                render_state = {
+                    let render_state = RenderState { window, surface };
+                    renderers.resize_with(render_cx.devices.len(), || None);
+                    let id = render_state.surface.dev_id;
+                    renderers[id].get_or_insert_with(|| {
+                        Renderer::new(&render_cx.devices[id].device, render_state.surface.format)
+                            .expect("Could create renderer")
+                    });
+                    Some(render_state)
+                };
                 *control_flow = ControlFlow::Poll;
             }
         }
@@ -328,7 +347,7 @@ fn create_window(event_loop: &winit::event_loop::EventLoopWindowTarget<UserEvent
 
 #[derive(Debug)]
 enum UserEvent {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
     HotReload,
 }
 
@@ -345,7 +364,9 @@ pub fn main() -> Result<()> {
         let mut render_cx = RenderContext::new().unwrap();
         #[cfg(not(target_arch = "wasm32"))]
         {
+            #[cfg(not(target_os = "android"))]
             let proxy = event_loop.create_proxy();
+            #[cfg(not(target_os = "android"))]
             let _keep = hot_reload::hot_reload(move || {
                 proxy.send_event(UserEvent::HotReload).ok().map(drop)
             });
@@ -372,13 +393,7 @@ pub fn main() -> Result<()> {
                 let surface = render_cx
                     .create_surface(&window, size.width, size.height)
                     .await;
-                let device_handle = &render_cx.devices[surface.dev_id];
-                let renderer = Renderer::new(&device_handle.device).unwrap();
-                let render_state = RenderState {
-                    renderer,
-                    window,
-                    surface,
-                };
+                let render_state = RenderState { window, surface };
                 // No error handling here; if the event loop has finished, we don't need to send them the surface
                 run(event_loop, args, scenes, render_cx, render_state);
             });
