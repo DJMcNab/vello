@@ -40,13 +40,6 @@ mod multi_touch;
 #[derive(Parser, Debug)]
 #[command(about, long_about = None, bin_name="cargo run -p with_winit --")]
 struct Args {
-    /// Path to the svg file to render. If not set, the GhostScript Tiger will be rendered
-    #[arg(long)]
-    #[cfg(not(target_arch = "wasm32"))]
-    svg: Option<std::path::PathBuf>,
-    /// When rendering an svg, what scale to use
-    #[arg(long)]
-    scale: Option<f64>,
     /// Which scene (index) to start on
     /// Switch between scenes with left and right arrow keys
     #[arg(long)]
@@ -121,6 +114,9 @@ fn run(
                             Some(VirtualKeyCode::Right) => scene_ix = scene_ix.saturating_add(1),
                             Some(VirtualKeyCode::Escape) => {
                                 *control_flow = ControlFlow::Exit;
+                            }
+                            Some(VirtualKeyCode::S) => {
+                                proxy.send_event(UserEvent::FakeSuspend).unwrap();
                             }
                             _ => {}
                         }
@@ -285,29 +281,29 @@ fn run(
             surface_texture.present();
             device_handle.device.poll(wgpu::Maintain::Poll);
         }
-        Event::UserEvent(event) => match event {
-            #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
-            UserEvent::HotReload => {
-                let Some(render_state) = &mut render_state else { return };
-                let device_handle = &render_cx.devices[render_state.surface.dev_id];
-                eprintln!("==============\nReloading shaders");
-                let start = Instant::now();
-                let result = renderers[render_state.surface.dev_id]
-                    .as_mut()
-                    .unwrap()
-                    .reload_shaders(&device_handle.device);
-                // We know that the only async here is actually sync, so we just block
-                match pollster::block_on(result) {
-                    Ok(_) => eprintln!("Reloading took {:?}", start.elapsed()),
-                    Err(e) => eprintln!("Failed to reload shaders because of {e}"),
-                }
+        #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
+        Event::UserEvent(UserEvent::HotReload) => {
+            let Some(render_state) = &mut render_state else { return };
+            let device_handle = &render_cx.devices[render_state.surface.dev_id];
+            eprintln!("==============\nReloading shaders");
+            let start = Instant::now();
+            let result = renderers[render_state.surface.dev_id]
+                .as_mut()
+                .unwrap()
+                .reload_shaders(&device_handle.device);
+            // We know that the only async here is actually sync, so we just block
+            match pollster::block_on(result) {
+                Ok(_) => eprintln!("Reloading took {:?}", start.elapsed()),
+                Err(e) => eprintln!("Failed to reload shaders because of {e}"),
             }
-        },
-        Event::Suspended => {
+        }
+        Event::UserEvent(UserEvent::FakeSuspend) | Event::Suspended => {
             render_state = None;
             *control_flow = ControlFlow::Wait;
+
+            proxy.send_event(UserEvent::FakeResume).unwrap();
         }
-        Event::Resumed => {
+        Event::UserEvent(UserEvent::FakeResume) | Event::Resumed => {
             #[cfg(target_arch = "wasm32")]
             {}
             #[cfg(not(target_arch = "wasm32"))]
@@ -350,6 +346,8 @@ fn create_window(event_loop: &winit::event_loop::EventLoopWindowTarget<UserEvent
 enum UserEvent {
     #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
     HotReload,
+    FakeSuspend,
+    FakeResume,
 }
 
 pub fn main() -> Result<()> {
