@@ -168,6 +168,30 @@ impl Engine {
             label: Some(label),
             source: wgpu::ShaderSource::Wgsl(wgsl),
         });
+        self.add_shader_module(layout, device, label, shader_module)
+    }
+
+    pub fn add_shader_naga(
+        &mut self,
+        device: &Device,
+        label: &'static str,
+        module: lighters::naga::Module,
+        layout: &[BindType],
+    ) -> Result<ShaderId, Error> {
+        let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some(label),
+            source: wgpu::ShaderSource::Naga(Cow::Owned(module)),
+        });
+        self.add_shader_module(layout, device, label, shader_module)
+    }
+
+    fn add_shader_module(
+        &mut self,
+        layout: &[BindType],
+        device: &Device,
+        label: &str,
+        shader_module: wgpu::ShaderModule,
+    ) -> Result<ShaderId, Error> {
         let entries = layout
             .iter()
             .enumerate()

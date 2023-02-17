@@ -38,7 +38,7 @@ hot_reload = []
 buffer_labels = []
 
 [dependencies]
-wgpu = { workspace = true }
+wgpu = { workspace = true, features = ["naga"] }
 raw-window-handle = "0.5"
 futures-intrusive = "0.5.0"
 parking_lot = "0.12"
@@ -47,6 +47,7 @@ smallvec = "1.8.0"
 moscato = { git = "https://github.com/dfrg/pinot", rev = "59db153" }
 peniko = { git = "https://github.com/linebender/peniko", rev = "8cb710f" }
 
+lighters = { path = "../lighters" }
 [workspace.dependencies]
 wgpu = "0.15"
 
