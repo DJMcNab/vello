@@ -90,7 +90,7 @@ fn read_end_clip(cmd_ix: u32) -> CmdEndClip {
 #else
 
 @group(0) @binding(3)
-var output: texture_storage_2d<r8, write>;
+var output: texture_storage_2d<rgba8unorm, write>;
 
 #endif
 
@@ -306,19 +306,20 @@ fn main(
             let fg = rgba[i];
             // Max with a small epsilon to avoid NaNs
             let a_inv = 1.0 / max(fg.a, 1e-6);
-            let rgba_sep = vec4(fg.rgb * a_inv, fg.a);            
+            let rgba_sep = vec4(fg.rgb * a_inv, fg.a);
             textureStore(output, vec2<i32>(coords), rgba_sep);
         }
     } 
 #else
     let tile = tiles[tile_ix];
-    let area = fill_path(tile, xy);
+    // Alow dynamic indexing by using a reference
+    var area = fill_path(tile, xy, false);
 
     let xy_uint = vec2<u32>(xy);
     for (var i = 0u; i < PIXELS_PER_THREAD; i += 1u) {
         let coords = xy_uint + vec2(i, 0u);
         if coords.x < config.target_width && coords.y < config.target_height {
-            textureStore(output, vec2<i32>(coords), vec4(area[i]));
+            textureStore(output, vec2<i32>(coords), vec4(area[i], area[i], area[i], 1.0));
         }
     }
 #endif

@@ -176,18 +176,16 @@ async fn run(event_loop: EventLoop<UserEvent>, window: Window, args: Args, mut s
                 .expect("failed to get surface texture");
             #[cfg(not(target_arch = "wasm32"))]
             {
-                block_on_wgpu(
-                    &device_handle.device,
-                    renderer.render_to_surface_async(
+                renderer
+                    .render_to_surface(
                         &device_handle.device,
                         &device_handle.queue,
                         &scene,
                         &surface_texture,
                         width,
                         height,
-                    ),
-                )
-                .expect("failed to render to surface");
+                    )
+                    .expect("failed to render to surface");
             }
             // Note: in the wasm case, we're currently not running the robust
             // pipeline, as it requires more async wiring for the readback.
@@ -247,7 +245,7 @@ fn main() -> Result<()> {
             });
 
             let window = WindowBuilder::new()
-                .with_inner_size(LogicalSize::new(1044, 800))
+                .with_inner_size(LogicalSize::new(64 * 16, 64 * 16))
                 .with_resizable(true)
                 .with_title("Vello demo")
                 .build(&event_loop)

@@ -25,11 +25,13 @@ struct Config {
     transform_base: u32,
     linewidth_base: u32,
 
+#ifdef full
     // Sizes of bump allocated buffers (in element size units)
     binning_size: u32,
     tiles_size: u32,
     segments_size: u32,    
     ptcl_size: u32,
+#endif
 }
 
 // Geometry of tiles and bins
