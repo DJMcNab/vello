@@ -138,15 +138,7 @@ macro_rules! shared_shader {
 }
 
 const SHARED_SHADERS: &[(&str, &str)] = &[
-    shared_shader!("bbox"),
-    shared_shader!("blend"),
-    shared_shader!("bump"),
-    shared_shader!("clip"),
     shared_shader!("config"),
-    shared_shader!("cubic"),
-    shared_shader!("drawtag"),
     shared_shader!("pathtag"),
-    shared_shader!("ptcl"),
     shared_shader!("segment"),
-    shared_shader!("tile"),
 ];

@@ -23,9 +23,6 @@ var<storage> segments: array<Segment>;
 
 #ifdef full
 
-#import blend
-#import ptcl
-
 let GRADIENT_WIDTH = 512;
 
 @group(0) @binding(3)
@@ -185,132 +182,6 @@ fn main(
 ) {
     let tile_ix = wg_id.y * config.width_in_tiles + wg_id.x;
     let xy = vec2(f32(global_id.x * PIXELS_PER_THREAD), f32(global_id.y));
-#ifdef full
-    var rgba: array<vec4<f32>, PIXELS_PER_THREAD>;
-    var blend_stack: array<array<u32, PIXELS_PER_THREAD>, BLEND_STACK_SPLIT>;
-    var clip_depth = 0u;
-    var area: array<f32, PIXELS_PER_THREAD>;
-    var cmd_ix = tile_ix * PTCL_INITIAL_ALLOC;
-    let blend_offset = ptcl[cmd_ix];
-    cmd_ix += 1u;
-    // main interpretation loop
-    while true {
-        let tag = ptcl[cmd_ix];
-        if tag == CMD_END {
-            break;
-        }
-        switch tag {
-            // CMD_FILL
-            case 1u: {
-                let fill = read_fill(cmd_ix);
-                let segments = fill.tile >> 1u;
-                let even_odd = (fill.tile & 1u) != 0u;
-                let tile = Tile(fill.backdrop, segments);
-                area = fill_path(tile, xy, even_odd);
-                cmd_ix += 3u;
-            }
-            // CMD_STROKE
-            case 2u: {
-                let stroke = read_stroke(cmd_ix);
-                area = stroke_path(stroke.tile, stroke.half_width, xy);
-                cmd_ix += 3u;
-            }
-            // CMD_SOLID
-            case 3u: {
-                for (var i = 0u; i < PIXELS_PER_THREAD; i += 1u) {
-                    area[i] = 1.0;
-                }
-                cmd_ix += 1u;
-            }
-            // CMD_COLOR
-            case 5u: {
-                let color = read_color(cmd_ix);
-                let fg = unpack4x8unorm(color.rgba_color).wzyx;
-                for (var i = 0u; i < PIXELS_PER_THREAD; i += 1u) {
-                    let fg_i = fg * area[i];
-                    rgba[i] = rgba[i] * (1.0 - fg_i.a) + fg_i;
-                }
-                cmd_ix += 2u;
-            }
-            // CMD_LIN_GRAD
-            case 6u: {
-                let lin = read_lin_grad(cmd_ix);
-                let d = lin.line_x * xy.x + lin.line_y * xy.y + lin.line_c;
-                for (var i = 0u; i < PIXELS_PER_THREAD; i += 1u) {
-                    let my_d = d + lin.line_x * f32(i);
-                    let x = i32(round(clamp(my_d, 0.0, 1.0) * f32(GRADIENT_WIDTH - 1)));
-                    let fg_rgba = textureLoad(gradients, vec2(x, i32(lin.index)), 0);
-                    let fg_i = fg_rgba * area[i];
-                    rgba[i] = rgba[i] * (1.0 - fg_i.a) + fg_i;
-                }
-                cmd_ix += 3u;
-            }
-            // CMD_RAD_GRAD
-            case 7u: {
-                let rad = read_rad_grad(cmd_ix);
-                for (var i = 0u; i < PIXELS_PER_THREAD; i += 1u) {
-                    let my_xy = vec2(xy.x + f32(i), xy.y);
-                    // TODO: can hoist y, but for now stick to the GLSL version
-                    let xy_xformed = rad.matrx.xz * my_xy.x + rad.matrx.yw * my_xy.y - rad.xlat;
-                    let ba = dot(xy_xformed, rad.c1);
-                    let ca = rad.ra * dot(xy_xformed, xy_xformed);
-                    let t = sqrt(ba * ba + ca) - ba - rad.roff;
-                    let x = i32(round(clamp(t, 0.0, 1.0) * f32(GRADIENT_WIDTH - 1)));
-                    let fg_rgba = textureLoad(gradients, vec2(x, i32(rad.index)), 0);
-                    let fg_i = fg_rgba * area[i];
-                    rgba[i] = rgba[i] * (1.0 - fg_i.a) + fg_i;
-                }
-                cmd_ix += 3u;
-            }
-            // CMD_BEGIN_CLIP
-            case 9u: {
-                if clip_depth < BLEND_STACK_SPLIT {
-                    for (var i = 0u; i < PIXELS_PER_THREAD; i += 1u) {
-                        blend_stack[clip_depth][i] = pack4x8unorm(rgba[i]);
-                        rgba[i] = vec4(0.0);
-                    }
-                } else {
-                    // TODO: spill to memory
-                }
-                clip_depth += 1u;
-                cmd_ix += 1u;
-            }
-            // CMD_END_CLIP
-            case 10u: {
-                let end_clip = read_end_clip(cmd_ix);
-                clip_depth -= 1u;
-                for (var i = 0u; i < PIXELS_PER_THREAD; i += 1u) {
-                    var bg_rgba: u32;
-                    if clip_depth < BLEND_STACK_SPLIT {
-                        bg_rgba = blend_stack[clip_depth][i];
-                    } else {
-                        // load from memory
-                    }
-                    let bg = unpack4x8unorm(bg_rgba);
-                    let fg = rgba[i] * area[i] * end_clip.alpha;
-                    rgba[i] = blend_mix_compose(bg, fg, end_clip.blend);
-                }
-                cmd_ix += 3u;
-            }
-            // CMD_JUMP
-            case 11u: {
-                cmd_ix = ptcl[cmd_ix + 1u];
-            }
-            default: {}
-        }
-    }
-    let xy_uint = vec2<u32>(xy);
-    for (var i = 0u; i < PIXELS_PER_THREAD; i += 1u) {
-        let coords = xy_uint + vec2(i, 0u);
-        if coords.x < config.target_width && coords.y < config.target_height {
-            let fg = rgba[i];
-            // Max with a small epsilon to avoid NaNs
-            let a_inv = 1.0 / max(fg.a, 1e-6);
-            let rgba_sep = vec4(fg.rgb * a_inv, fg.a);
-            textureStore(output, vec2<i32>(coords), rgba_sep);
-        }
-    } 
-#else
     let tile = tiles[tile_ix];
     // Alow dynamic indexing by using a reference
     var area = fill_path(tile, xy, false);
@@ -322,5 +193,4 @@ fn main(
             textureStore(output, vec2<i32>(coords), vec4(area[i], area[i], area[i], 1.0));
         }
     }
-#endif
 }
