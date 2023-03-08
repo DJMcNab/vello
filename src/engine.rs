@@ -127,7 +127,7 @@ struct BindMap {
     image_map: HashMap<Id, (Texture, TextureView)>,
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, Debug)]
 struct BufferProperties {
     size: u64,
     usages: BufferUsages,
@@ -135,7 +135,7 @@ struct BufferProperties {
     name: &'static str,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct ResourcePool {
     bufs: HashMap<BufferProperties, Vec<Buffer>>,
 }

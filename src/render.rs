@@ -90,6 +90,7 @@ pub(crate) fn render(scene: &Scene, shaders: &Shaders) -> (Recording, ImageProxy
         (pathtag_wgs as u32, 1, 1),
         [config_buf, scene_buf, reduced_buf, tagmonoid_buf],
     );
+    recording.free_buf(reduced_buf);
 
     let path_coarse_wgs =
         (n_pathtag as u32 + shaders::PATH_COARSE_WG - 1) / shaders::PATH_COARSE_WG;
@@ -108,6 +109,9 @@ pub(crate) fn render(scene: &Scene, shaders: &Shaders) -> (Recording, ImageProxy
             segments_buf,
         ],
     );
+    recording.free_buf(tagmonoid_buf);
+    recording.free_buf(scene_buf);
+
     recording.dispatch(
         shaders.backdrop,
         (config.height_in_tiles, 1, 1),
@@ -129,6 +133,9 @@ pub(crate) fn render(scene: &Scene, shaders: &Shaders) -> (Recording, ImageProxy
             ResourceProxy::Image(out_image),
         ],
     );
+    recording.free_buf(config_buf);
+    recording.free_buf(tiles_buf);
+    recording.free_buf(segments_buf);
 
     (recording, out_image)
 }

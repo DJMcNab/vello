@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT OR Unlicense
 
-// Fine rasterizer. This can run in simple (just path rendering) and full
-// modes, controllable by #define.
-
 // This is a cut'n'paste w/ backdrop.
 struct Tile {
     backdrop: i32,
@@ -13,7 +10,7 @@ struct Tile {
 #import config
 
 @group(0) @binding(0)
-var<uniform> config: Config;
+var<storage> config: Config;
 
 @group(0) @binding(1)
 var<storage> tiles: array<Tile>;
@@ -21,22 +18,28 @@ var<storage> tiles: array<Tile>;
 @group(0) @binding(2)
 var<storage> segments: array<Segment>;
 
+// This will become a texture, but keeping things simple for now
 @group(0) @binding(3)
-var output: texture_storage_2d<rgba8unorm, write>;
+var<storage, read_write> output: array<u32>;
 
 let PIXELS_PER_THREAD = 4u;
-let PIXELS_IN_PATH = 5u;
 
-fn fill_path(tile: Tile, xy: vec2<f32>, even_odd: bool) -> array<f32, PIXELS_IN_PATH> {
-    var area: array<f32, PIXELS_IN_PATH>;
+@compute @workgroup_size(4, 16)
+fn main(
+    @builtin(global_invocation_id) global_id: vec3<u32>,
+    @builtin(local_invocation_id) local_id: vec3<u32>,
+    @builtin(workgroup_id) wg_id: vec3<u32>,
+) {
+    let tile_ix = wg_id.y * config.width_in_tiles + wg_id.x;
+    let xy = vec2<f32>(f32(global_id.x * PIXELS_PER_THREAD), f32(global_id.y));
+    let tile = tiles[tile_ix];
+    var area: array<f32, PIXELS_PER_THREAD>;
     let backdrop_f = f32(tile.backdrop);
     for (var i = 0u; i < PIXELS_PER_THREAD; i += 1u) {
         area[i] = backdrop_f;
     }
-    var count = 0;
     var segment_ix = tile.segments;
     while segment_ix != 0u {
-        count++;
         let segment = segments[segment_ix];
         let y = segment.origin.y - xy.y;
         let y0 = clamp(y, 0.0, 1.0);
@@ -68,40 +71,12 @@ fn fill_path(tile: Tile, xy: vec2<f32>, even_odd: bool) -> array<f32, PIXELS_IN_
         }
         segment_ix = segment.next;
     }
-    if even_odd {
-        // even-odd winding rule
-        for (var i = 0u; i < PIXELS_PER_THREAD; i += 1u) {
-            let a = area[i];
-            area[i] = abs(a - 2.0 * round(0.5 * a));
-        }
-    } else {
-        // non-zero winding rule
-        for (var i = 0u; i < PIXELS_PER_THREAD; i += 1u) {
-            area[i] = min(abs(area[i]), 1.0);
-        }
-    }
-    area[4] = f32(count);
-    return area;
-}
-
-// The X size should be 16 / PIXELS_PER_THREAD
-@compute @workgroup_size(4, 16)
-fn main(
-    @builtin(global_invocation_id) global_id: vec3<u32>,
-    @builtin(local_invocation_id) local_id: vec3<u32>,
-    @builtin(workgroup_id) wg_id: vec3<u32>,
-) {
-    let tile_ix = wg_id.y * config.width_in_tiles + wg_id.x;
-    let xy = vec2(f32(global_id.x * PIXELS_PER_THREAD), f32(global_id.y));
-    let tile = tiles[tile_ix];
-    // Alow dynamic indexing by using a reference
-    var area = fill_path(tile, xy, false);
-
-    let xy_uint = vec2<u32>(xy);
+    // nonzero winding rule
     for (var i = 0u; i < PIXELS_PER_THREAD; i += 1u) {
-        let coords = xy_uint + vec2(i, 0u);
-        if coords.x < config.target_width && coords.y < config.target_height {
-            textureStore(output, vec2<i32>(coords), vec4(area[i], area[i], area[4] / 6.0, 1.0));
-        }
+        area[i] = abs(area[i]);
     }
+
+    let bytes = pack4x8unorm(vec4<f32>(area[0], area[1], area[2], area[3]));
+    let out_ix = global_id.y * (config.width_in_tiles * 4u) + global_id.x;
+    output[out_ix] = bytes;
 }
