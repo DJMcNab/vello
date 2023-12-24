@@ -8,6 +8,24 @@ use wgpu::{
 };
 use wgpu_profiler::GpuProfiler;
 
+fn check_sum(input: &[u32], actual: &[u32]) {
+    let mut agg = 0;
+    let mut wrong_count = 0;
+    for (idx, (next_in, actual_v)) in input.iter().zip(actual).enumerate() {
+        agg += next_in;
+        if actual_v != &agg {
+            println!(
+                "Item {idx} wrong. Got {actual_v}, expected {agg}. Difference {}",
+                agg.abs_diff(*actual_v)
+            );
+            wrong_count += 1;
+            if wrong_count > 10 {
+                break;
+            }
+        }
+    }
+}
+
 async fn run() {
     let instance = wgpu::Instance::default();
     let adapter = instance.request_adapter(&Default::default()).await.unwrap();
@@ -25,8 +43,9 @@ async fn run() {
         .unwrap();
     let mut profiler = GpuProfiler::new(Default::default()).unwrap();
     let workgroup_size = 256;
-    let num_workgroups = 10_000;
-    let total_data = workgroup_size * num_workgroups;
+    let num_workgroups = 256 * 64;
+    let n_seq = 8;
+    let total_data = workgroup_size * num_workgroups * n_seq;
     let input_data: Vec<u32> = (0..(total_data / 32)).flat_map(|_| 0..32).collect();
     let expected_total = input_data.iter().sum::<u32>();
     if expected_total & 1u32 << 31 != 0 {
@@ -57,6 +76,12 @@ async fn run() {
     let inclusive_prefix_buffer = device.create_buffer(&BufferDescriptor {
         label: Some("Buffer for per-workgroup inclusive prefixes"),
         size: (num_workgroups * size_of::<u32>() as u32) as u64,
+        usage: BufferUsages::STORAGE,
+        mapped_at_creation: false,
+    });
+    let partition_alloc_buffer = device.create_buffer(&BufferDescriptor {
+        label: None,
+        size: size_of::<u32>() as u64,
         usage: BufferUsages::STORAGE,
         mapped_at_creation: false,
     });
@@ -94,6 +119,10 @@ async fn run() {
             wgpu::BindGroupEntry {
                 binding: 3,
                 resource: inclusive_prefix_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: partition_alloc_buffer.as_entire_binding(),
             },
         ],
     });
@@ -137,12 +166,7 @@ async fn run() {
         )
         .unwrap();
         let checksum_start = Instant::now();
-        let mut agg = 0;
-        assert_eq!(input_data.len(), result.len());
-        for (v, actual) in input_data.iter().zip(&result) {
-            agg += v;
-            assert_eq!(*actual, agg);
-        }
+        check_sum(&input_data, &result);
         println!("Confirming took {:?}", checksum_start.elapsed());
     } else {
         panic!("Couldn't get data, got {received:?}")

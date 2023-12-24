@@ -39,64 +39,75 @@ var<storage, read_write> inclusive_prefices: array<atomic<u32>>;
 
 const WG_SIZE = 256u;
 const WG_SIZE_LOG2 = 8u;
+const N_SEQ = 8u;
 var<workgroup> wg_scratch: array<u32, WG_SIZE>;
 var<workgroup> loaded_value: bool;
 
+var<workgroup> partition_ix_var: u32;
+
+@group(0)
+@binding(4)
+var<storage, read_write> partition_alloc: atomic<u32>;
+
 @compute
 @workgroup_size(256)
-fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
+fn main(
     @builtin(local_invocation_id) local_id: vec3<u32>,
-    @builtin(workgroup_id) workgroup_id: vec3<u32>) {
-    let ix = global_id.x;
-    // N.B. This is only valid on the 0th thread
-    var local_agg = 0u;
-    if local_id.x == 0u {
-        // If a previous thread already computed our `agg`, there's no use in redoing that work
-        var this_agg = atomicLoad(&aggregates[workgroup_id.x]);
-        if has_flag(this_agg) {
-            loaded_value = true;
-            local_agg = remove_flag(this_agg);
-        } else {
-            loaded_value = false;
-        }
+) {
+    let local_ix = local_id.x;
+    if local_ix == 0u {
+        partition_ix_var = atomicAdd(&partition_alloc, 1u);
+        loaded_value = false;
     }
-    let skip_agg = workgroupUniformLoad(&loaded_value);
-    if !skip_agg {
-        var agg = input[ix];
-        wg_scratch[local_id.x] = agg;
-        for (var i = 0u; i < WG_SIZE_LOG2; i += 1u) {
-            workgroupBarrier();
-            if local_id.x + (1u << i) < WG_SIZE {
-                let other = wg_scratch[local_id.x + (1u << i)];
-                agg = reduce(agg, other);
-            }
-            workgroupBarrier();
-            wg_scratch[local_id.x] = agg;
-        }
-        if local_id.x == 0u {
-            atomicStore(&aggregates[workgroup_id.x], with_flag(agg));
-            local_agg = agg;
-        }
-    }
+    let partition_ix = workgroupUniformLoad(&partition_ix_var);
 
+    var local = array<u32, N_SEQ>();
+    let this_ix_base = (partition_ix * WG_SIZE + local_ix) * N_SEQ;
+    var el = input[this_ix_base];
+    // Forward scan through N_SEQ
+    local[0] = el;
+    for (var i = 1u; i < N_SEQ; i += 1u) {
+        el = reduce(el, input[this_ix_base + i]);
+        local[i] = el;
+    }
+    // local[0..8] is [input[this_ix_base], input[this_ix_base] + input[this_ix_base + 1], ...]
+    // el is sum(input[this_ix_base..this_ix_base+7])
+    let local_total = el;
+    // local[0] is input[0]
+
+    // Reverse scan through the workgroup local elements, to calculate *only* the first element
+    wg_scratch[local_id.x] = el;
+    for (var i = 0u; i < WG_SIZE_LOG2; i += 1u) {
+        workgroupBarrier();
+        if local_id.x + (1u << i) < WG_SIZE {
+            let other = wg_scratch[local_id.x + (1u << i)];
+            el = reduce(el, other);
+        }
+        workgroupBarrier();
+        wg_scratch[local_id.x] = el;
+    }
+    if local_ix == 0u {
+        atomicStore(&aggregates[partition_ix], with_flag(el));
+    }
+    
     // Ensure that there is a barrier before we reuse agg for the scalar fallback
     workgroupBarrier();
     // This workgroup's exclusive prefix. N.B. This only has a meaningul value on the first thread
     var exclusive_prefix = 0u;
-    if workgroup_id.x == 0u {
-        if local_id.x == 0u {
-            atomicStore(&inclusive_prefices[0], with_flag(local_agg));
-            exclusive_prefix = 0u;
+    if partition_ix == 0u {
+        if local_ix == 0u {
+            atomicStore(&inclusive_prefices[0], with_flag(el));
         }
     } else {
-        var cur_ix = workgroup_id.x - 1u;
+        var cur_ix = partition_ix - 1u;
         // Perform lookback
         loop {
             // TODO: Split this across multiple threads?
-            if local_id.x == 0u {
-                // We use `atomicOr` here to encourage refetching the cache?
+            if local_ix == 0u {
                 let prefix_ix = atomicLoad(&inclusive_prefices[cur_ix]);
-                if has_flag(prefix_ix) {
+                // let prefix_ix = atomicOr(&inclusive_prefices[cur_ix], 0u);
+                let has_flag = has_flag(prefix_ix);
+                if has_flag {
                     exclusive_prefix = reduce(remove_flag(prefix_ix), exclusive_prefix);
                     loaded_value = true;
                 } else {
@@ -107,57 +118,63 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
             if finished {
                 break;
             }
-            if local_id.x == 0u {
-                let aggregate_ix = atomicLoad(&aggregates[cur_ix]);
-                if has_flag(aggregate_ix) {
-                    exclusive_prefix = reduce(remove_flag(aggregate_ix), exclusive_prefix);
-                    loaded_value = true;
-                } else {
-                    loaded_value = false;
-                }
-            }
-            var finished_this_iter = workgroupUniformLoad(&loaded_value);
-            if !finished_this_iter {
-                // Calculate aggregate for cur_ix
-                let friendly_ix = cur_ix * WG_SIZE + local_id.x;
-                var agg = input[friendly_ix];
-                wg_scratch[local_id.x] = agg;
-                for (var i = 0u; i < WG_SIZE_LOG2; i += 1u) {
-                    workgroupBarrier();
-                    if local_id.x + (1u << i) < WG_SIZE {
-                        let other = wg_scratch[local_id.x + (1u << i)];
-                        agg = reduce(agg, other);
+            var this_agg = 0;
+            var this_idx = 0;
+            loop {
+                if local_ix == 0u {
+                    let aggregate_ix = atomicLoad(&aggregates[cur_ix]);
+                    // let aggregate_ix = atomicOr(&aggregates[cur_ix], 0u);
+                    if has_flag(aggregate_ix) {
+                        exclusive_prefix = reduce(remove_flag(aggregate_ix), exclusive_prefix);
+                        loaded_value = true;
+                    } else {
+                        loaded_value = false;
                     }
-                    workgroupBarrier();
-                    wg_scratch[local_id.x] = agg;
                 }
-                if local_id.x == 0u {
-                    atomicStore(&aggregates[cur_ix], with_flag(agg));
-                    exclusive_prefix = reduce(agg, exclusive_prefix);
+
+                let finished_this_iter = workgroupUniformLoad(&loaded_value);
+                if finished_this_iter {
+                    break;
                 }
+                // else spinlock
+                // TODO: Make forward progress here
             }
             if cur_ix == 0u {
                 break;
             }
             cur_ix -= 1u;
         }
-        if local_id.x == 0u {
-            atomicStore(&inclusive_prefices[workgroup_id.x], with_flag(reduce(exclusive_prefix, local_agg)));
+
+        if local_ix == 0u {
+            atomicStore(&inclusive_prefices[partition_ix], with_flag(reduce(exclusive_prefix, el)));
         }
     }
-    var agg = input[ix];
-    if local_id.x == 0u {
-        agg = reduce(exclusive_prefix, agg);
+
+    // input[0]..input[local_total]
+    el = local_total;
+    // exclusive_prefix = 0
+    if local_ix == 0u {
+        el = reduce(exclusive_prefix, local_total);
     }
-    wg_scratch[local_id.x] = agg;
+    // Forward scan through the next values
+    wg_scratch[local_ix] = el;
     for (var i = 0u; i < WG_SIZE_LOG2; i += 1u) {
         workgroupBarrier();
         if local_id.x >= 1u << i {
-            let other = wg_scratch[local_id.x - (1u << i)];
-            agg = reduce(other, agg);
+            let other = wg_scratch[local_ix - (1u << i)];
+            el = reduce(other, el);
         }
         workgroupBarrier();
-        wg_scratch[local_id.x] = agg;
+        wg_scratch[local_id.x] = el;
     }
-    results[ix] = agg;
+    workgroupBarrier();
+    var res: u32;
+    if local_ix == 0u {
+        res = exclusive_prefix;
+    } else {
+        res = wg_scratch[local_ix - 1u];
+    }
+    for (var i = 0u ; i < N_SEQ; i += 1u) {
+        results[this_ix_base + i] = reduce(res, local[i]);
+    }
 }
