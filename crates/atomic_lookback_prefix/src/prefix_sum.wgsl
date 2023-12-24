@@ -52,7 +52,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
     var local_agg = 0u;
     if local_id.x == 0u {
         // If a previous thread already computed our `agg`, there's no use in redoing that work
-        var this_agg = atomicOr(&aggregates[workgroup_id.x], 0u);
+        var this_agg = atomicLoad(&aggregates[workgroup_id.x]);
         if has_flag(this_agg) {
             loaded_value = true;
             local_agg = remove_flag(this_agg);
@@ -95,7 +95,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
             // TODO: Split this across multiple threads?
             if local_id.x == 0u {
                 // We use `atomicOr` here to encourage refetching the cache?
-                let prefix_ix = atomicOr(&inclusive_prefices[cur_ix], 0u);
+                let prefix_ix = atomicLoad(&inclusive_prefices[cur_ix]);
                 if has_flag(prefix_ix) {
                     exclusive_prefix = reduce(remove_flag(prefix_ix), exclusive_prefix);
                     loaded_value = true;
@@ -108,7 +108,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
                 break;
             }
             if local_id.x == 0u {
-                let aggregate_ix = atomicOr(&aggregates[cur_ix], 0u);
+                let aggregate_ix = atomicLoad(&aggregates[cur_ix]);
                 if has_flag(aggregate_ix) {
                     exclusive_prefix = reduce(remove_flag(aggregate_ix), exclusive_prefix);
                     loaded_value = true;

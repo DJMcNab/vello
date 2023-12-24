@@ -12,3 +12,4 @@ wgpu = { workspace = true }
 pollster = { workspace = true }
 bytemuck = { workspace = true }
 futures-intrusive = "0.5.0"
+wgpu-profiler = { workspace = true }

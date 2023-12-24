@@ -1,4 +1,4 @@
-use std::{mem::size_of, time::Instant};
+use std::{mem::size_of, path::Path, time::Instant};
 
 use bytemuck::cast_slice;
 use wgpu::{
@@ -6,6 +6,7 @@ use wgpu::{
     BindGroupDescriptor, BufferDescriptor, BufferUsages, ComputePipelineDescriptor,
     DeviceDescriptor, Limits,
 };
+use wgpu_profiler::GpuProfiler;
 
 async fn run() {
     let instance = wgpu::Instance::default();
@@ -14,26 +15,25 @@ async fn run() {
         .request_device(
             &DeviceDescriptor {
                 label: Some("WGSL atomic lookback prefix sum proof of concept"),
-                features: wgpu::Features::default(),
+                features: wgpu::Features::default()
+                    | wgpu_profiler::GpuProfiler::ALL_WGPU_TIMER_FEATURES,
                 limits: Limits::default(),
             },
             None,
         )
         .await
         .unwrap();
+    let mut profiler = GpuProfiler::new(Default::default()).unwrap();
     let workgroup_size = 256;
     let num_workgroups = 10_000;
     let total_data = workgroup_size * num_workgroups;
-    let input_data: Vec<u32> = (0..(total_data / 32))
-        .flat_map(|_| 0..32)
-        .map(|it| if it == 15 { 16 } else { it })
-        .collect();
+    let input_data: Vec<u32> = (0..(total_data / 32)).flat_map(|_| 0..32).collect();
     let expected_total = input_data.iter().sum::<u32>();
     if expected_total & 1u32 << 31 != 0 {
         panic!("Expected total too big: {expected_total}");
     }
-    let start = Instant::now();
     let module = device.create_shader_module(wgpu::include_wgsl!("./prefix_sum.wgsl"));
+    let start = Instant::now();
     let input_buffer = device.create_buffer_init(&BufferInitDescriptor {
         label: Some("Input buffer"),
         contents: cast_slice(&input_data),
@@ -100,10 +100,13 @@ async fn run() {
     let mut encoder = device.create_command_encoder(&Default::default());
     {
         let mut pass = encoder.begin_compute_pass(&Default::default());
+        profiler.begin_scope("Compute", &mut pass, &device);
         pass.set_pipeline(&pipeline);
         pass.set_bind_group(0, &bind_group, &[]);
         pass.dispatch_workgroups(num_workgroups, 1, 1);
+        profiler.end_scope(&mut pass).unwrap();
     }
+    profiler.begin_scope("Copy buffer", &mut encoder, &device);
     encoder.copy_buffer_to_buffer(
         &output_buffer,
         0,
@@ -111,7 +114,11 @@ async fn run() {
         0,
         total_data as u64 * size_of::<u32>() as u64,
     );
+    profiler.end_scope(&mut encoder).unwrap();
+
+    profiler.resolve_queries(&mut encoder);
     queue.submit(Some(encoder.finish()));
+    profiler.end_frame().unwrap();
     let slice = staging_buffer.slice(..);
     let (sender, receiver) = futures_intrusive::channel::shared::oneshot_channel();
     slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
@@ -123,8 +130,15 @@ async fn run() {
         let result: Vec<u32> = cast_slice(&data).to_vec();
         drop(data);
         staging_buffer.unmap();
+        let frame = profiler.process_finished_frame(queue.get_timestamp_period());
+        wgpu_profiler::chrometrace::write_chrometrace(
+            Path::new("chrome_trace.json"),
+            &frame.unwrap(),
+        )
+        .unwrap();
         let checksum_start = Instant::now();
         let mut agg = 0;
+        assert_eq!(input_data.len(), result.len());
         for (v, actual) in input_data.iter().zip(&result) {
             agg += v;
             assert_eq!(*actual, agg);
