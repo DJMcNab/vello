@@ -37,13 +37,13 @@ var<storage, read_write> aggregates: array<atomic<u32>>;
 @binding(3)
 var<storage, read_write> inclusive_prefices: array<atomic<u32>>;
 
-const WG_SIZE = 64u;
-const WG_SIZE_LOG2 = 6u;
+const WG_SIZE = 256u;
+const WG_SIZE_LOG2 = 8u;
 var<workgroup> wg_scratch: array<u32, WG_SIZE>;
 var<workgroup> loaded_value: bool;
 
 @compute
-@workgroup_size(64)
+@workgroup_size(256)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
     @builtin(local_invocation_id) local_id: vec3<u32>,
     @builtin(workgroup_id) workgroup_id: vec3<u32>) {
@@ -145,5 +145,19 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>,
             atomicStore(&inclusive_prefices[workgroup_id.x], with_flag(reduce(exclusive_prefix, local_agg)));
         }
     }
-    results[ix] = reduce(exclusive_prefix, local_agg);
+    var agg = input[ix];
+    if local_id.x == 0u {
+        agg = reduce(exclusive_prefix, agg);
+    }
+    wg_scratch[local_id.x] = agg;
+    for (var i = 0u; i < WG_SIZE_LOG2; i += 1u) {
+        workgroupBarrier();
+        if local_id.x >= 1u << i {
+            let other = wg_scratch[local_id.x - (1u << i)];
+            agg = reduce(other, agg);
+        }
+        workgroupBarrier();
+        wg_scratch[local_id.x] = agg;
+    }
+    results[ix] = agg;
 }

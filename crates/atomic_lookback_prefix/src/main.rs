@@ -1,4 +1,4 @@
-use std::mem::size_of;
+use std::{mem::size_of, time::Instant};
 
 use bytemuck::cast_slice;
 use wgpu::{
@@ -21,17 +21,18 @@ async fn run() {
         )
         .await
         .unwrap();
-    let workgroup_size = 64;
-    let num_workgroups = 1024;
+    let workgroup_size = 256;
+    let num_workgroups = 10_000;
     let total_data = workgroup_size * num_workgroups;
-    let input_data: Vec<u32> = (0..total_data)
+    let input_data: Vec<u32> = (0..(total_data / 32))
+        .flat_map(|_| 0..32)
         .map(|it| if it == 15 { 16 } else { it })
         .collect();
     let expected_total = input_data.iter().sum::<u32>();
-    eprintln!("{:08x?}", 1u32 << 31);
     if expected_total & 1u32 << 31 != 0 {
         panic!("Expected total too big: {expected_total}");
     }
+    let start = Instant::now();
     let module = device.create_shader_module(wgpu::include_wgsl!("./prefix_sum.wgsl"));
     let input_buffer = device.create_buffer_init(&BufferInitDescriptor {
         label: Some("Input buffer"),
@@ -117,22 +118,18 @@ async fn run() {
     device.poll(wgpu::MaintainBase::Wait);
     let received = receiver.receive().await;
     if let Some(Ok(())) = received {
+        println!("Getting data took {:?}", start.elapsed());
         let data = slice.get_mapped_range();
         let result: Vec<u32> = cast_slice(&data).to_vec();
         drop(data);
         staging_buffer.unmap();
-        for x in 0..num_workgroups {
-            let expected = &input_data[0..(workgroup_size * (x + 1)) as usize]
-                .iter()
-                .sum::<u32>();
-            let v = &result[(x * workgroup_size) as usize];
-            println!(
-                "Got {}: wanted {expected} (wrong by {})",
-                v,
-                v.abs_diff(*expected)
-            );
+        let checksum_start = Instant::now();
+        let mut agg = 0;
+        for (v, actual) in input_data.iter().zip(&result) {
+            agg += v;
+            assert_eq!(*actual, agg);
         }
-        println!("Expected total: {expected_total}");
+        println!("Confirming took {:?}", checksum_start.elapsed());
     } else {
         panic!("Couldn't get data, got {received:?}")
     }
