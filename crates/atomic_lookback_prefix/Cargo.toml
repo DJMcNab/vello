@@ -1,0 +1,14 @@
+[package]
+name = "atomic_lookback_prefix"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+wgpu = { workspace = true }
+pollster = { workspace = true }
+bytemuck = { workspace = true }
+futures-intrusive = "0.5.0"
