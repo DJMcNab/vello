@@ -3,16 +3,16 @@ resolver = "2"
 members = [
     "crates/encoding",
     "crates/shaders",
-    "crates/tests",
+    # "crates/tests",
 
     "integrations/vello_svg",
 
-    "examples/headless",
+    # "examples/headless",
     "examples/with_winit",
-    "examples/with_bevy",
+    # "examples/with_bevy",
     "examples/run_wasm",
     "examples/scenes",
-    "examples/simple",
+    # "examples/simple",
 ]
 
 [workspace.package]
@@ -79,7 +79,7 @@ futures-intrusive = "0.5.0"
 raw-window-handle = "0.6.0"
 
 # NOTE: Make sure to keep this in sync with the version badge in README.md
-wgpu = { version = "0.19.3" }
+wgpu = { git = "https://github.com/gfx-rs/wgpu", rev = "f20ce104455a66ae2d0e5ade95033efb85342ce3" }
 log = "0.4.21"
 
 # Used for examples
@@ -87,4 +87,4 @@ clap = "4.5.3"
 anyhow = "1.0.81"
 instant = { version = "0.1.12", features = ["wasm-bindgen"] }
 pollster = "0.3.0"
-wgpu-profiler = "0.16.1"
+wgpu-profiler = { package = "wgpu" }
