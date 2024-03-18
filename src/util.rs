@@ -157,25 +157,30 @@ impl RenderContext {
                             device.create_pipeline_cache_init(&wgpu::PipelineCacheInitDescriptor {
                                 label: Some("Vello Pipeline cache"),
                                 data: &data,
-                                fallback: true,
+                                fallback: false,
                             })
                         };
+                        log::debug!("Making pipeline cache with {} bytes", data.len());
                         (Some(Arc::new(cache)), Some(cache_file))
                     }
                     Err(e) => {
                         if e.kind() != ErrorKind::NotFound {
                             log::error!("Got unexpected error {e} trying to open pipeline cache at {cache_file:?}");
+                        } else {
+                            log::info!("Didn't get pipeline cache at {cache_file:?}")
                         }
                         let cache = device.create_pipeline_cache(&wgpu::PipelineCacheDescriptor {
                             label: Some("Vello Pipeline cache"),
                         });
-                        (Some(Arc::new(cache)), None)
+                        (Some(Arc::new(cache)), Some(cache_file))
                     }
                 }
             } else {
+                log::debug!("Not using pipeline cache as cache directory not provided");
                 (None, None)
             }
         } else {
+            log::debug!("Not using pipeline cache as device doesn't support it");
             (None, None)
         };
         let device_handle = DeviceHandle {
@@ -213,6 +218,7 @@ impl DeviceHandle {
                 log::error!("Got {e} whilst moving pipeline cache data from {temp_filename:?} to {cache_filename:?}");
                 return;
             };
+            log::info!("Stored pipeline cache at {cache_filename:?}");
         }
     }
 }

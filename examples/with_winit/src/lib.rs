@@ -845,6 +845,10 @@ fn get_cache_directory(app: &AndroidApp) -> anyhow::Result<std::path::PathBuf> {
         .get_string(&string)
         .context("Converting into a Rust string")?;
     let string: String = string.into();
+    let dir = PathBuf::from(string).join("vello");
+    if !dir.exists() {
+        std::fs::create_dir(&dir).context("Creating pipeline cache directory")?;
+    }
     // TODO: Also get the quota. This appears to be more involved, requiring a worker thread and being asynchronous
-    Ok(PathBuf::from(string).join("vello"))
+    Ok(dir)
 }
