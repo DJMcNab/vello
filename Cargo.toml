@@ -79,7 +79,7 @@ futures-intrusive = "0.5.0"
 raw-window-handle = "0.6.0"
 
 # NOTE: Make sure to keep this in sync with the version badge in README.md
-wgpu = { git = "https://github.com/gfx-rs/wgpu", rev = "f20ce104455a66ae2d0e5ade95033efb85342ce3" }
+wgpu = { git = "https://github.com/gfx-rs/wgpu", rev = "ad3118dea0fd4549e31f4f3262f868f18624d1c6" }
 log = "0.4.21"
 
 # Used for examples
