@@ -167,7 +167,7 @@ impl RenderContext {
                         if e.kind() != ErrorKind::NotFound {
                             log::error!("Got unexpected error {e} trying to open pipeline cache at {cache_file:?}");
                         } else {
-                            log::info!("Didn't get pipeline cache at {cache_file:?}")
+                            log::info!("Didn't get pipeline cache at {cache_file:?}");
                         }
                         let cache = device.create_pipeline_cache(&wgpu::PipelineCacheDescriptor {
                             label: Some("Vello Pipeline cache"),
@@ -210,11 +210,11 @@ impl DeviceHandle {
                 return;
             };
             let temp_filename = cache_filename.with_extension("temp");
-            if let Err(e) = std::fs::write(&temp_filename, &data) {
+            if let Err(e) = std::fs::write(&temp_filename, data) {
                 log::error!("Got {e} whilst writing pipeline cache data to {temp_filename:?}");
                 return;
             };
-            if let Err(e) = std::fs::rename(&temp_filename, &cache_filename) {
+            if let Err(e) = std::fs::rename(&temp_filename, cache_filename) {
                 log::error!("Got {e} whilst moving pipeline cache data from {temp_filename:?} to {cache_filename:?}");
                 return;
             };
