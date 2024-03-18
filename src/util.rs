@@ -157,7 +157,7 @@ impl RenderContext {
                             device.create_pipeline_cache_init(&wgpu::PipelineCacheInitDescriptor {
                                 label: Some("Vello Pipeline cache"),
                                 data: &data,
-                                fallback: false,
+                                fallback: true,
                             })
                         };
                         log::debug!("Making pipeline cache with {} bytes", data.len());
