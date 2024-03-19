@@ -15,7 +15,7 @@ crate-type = ["cdylib", "lib"]
 default = []
 # Enable the use of wgpu-profiler. This is an optional feature for times when we use a git dependency on
 # wgpu (which means the dependency used in wgpu-profiler would be incompatible)
-wgpu-profiler = ["dep:wgpu-profiler", "vello/wgpu-profiler"]
+# wgpu-profiler = ["dep:wgpu-profiler", "vello/wgpu-profiler"]
 
 [lints]
 workspace = true
@@ -32,7 +32,7 @@ anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 instant = { workspace = true }
 pollster = { workspace = true }
-wgpu-profiler = { workspace = true, optional = true }
+# wgpu-profiler = { workspace = true, optional = true }
 
 wgpu = { workspace = true }
 winit = "0.29.15"

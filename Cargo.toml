@@ -64,7 +64,7 @@ wgpu = { workspace = true, optional = true }
 log = { workspace = true }
 raw-window-handle = { workspace = true }
 futures-intrusive = { workspace = true }
-wgpu-profiler = { workspace = true, optional = true }
+# wgpu-profiler = { workspace = true, optional = true }
 
 [workspace.lints]
 clippy.doc_markdown = "warn"
@@ -87,4 +87,4 @@ clap = "4.5.3"
 anyhow = "1.0.81"
 instant = { version = "0.1.12", features = ["wasm-bindgen"] }
 pollster = "0.3.0"
-wgpu-profiler = { package = "wgpu" }
+wgpu-profiler = "0.16.1"
