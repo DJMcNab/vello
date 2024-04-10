@@ -623,6 +623,7 @@ impl WgpuEngine {
         wgsl: Cow<'_, str>,
         entries: Vec<wgpu::BindGroupLayoutEntry>,
     ) -> WgpuShader {
+        let _span = tracing::info_span!("Compiling shader", ?label).entered();
         let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some(label),
             source: wgpu::ShaderSource::Wgsl(wgsl),
@@ -642,6 +643,10 @@ impl WgpuEngine {
             layout: Some(&compute_pipeline_layout),
             module: &shader_module,
             entry_point: "main",
+            compilation_options: wgpu::PipelineCompilationOptions {
+                zero_initialize_workgroup_memory: false,
+                ..Default::default()
+            },
         });
         WgpuShader {
             pipeline,

@@ -12,7 +12,7 @@ name = "with_winit"
 crate-type = ["cdylib", "lib"]
 
 [features]
-default = ["wgpu-profiler"]
+default = []
 # Enable the use of wgpu-profiler. This is an optional feature for times when we use a git dependency on
 # wgpu (which means the dependency used in wgpu-profiler would be incompatible)
 wgpu-profiler = ["dep:wgpu-profiler", "vello/wgpu-profiler"]
@@ -68,3 +68,10 @@ console_log = "1.0.0"
 wasm-bindgen-futures = "0.4.42"
 web-sys = { version = "0.3.67", features = ["HtmlCollection", "Text"] }
 getrandom = { version = "0.2.12", features = ["js"] }
+
+[package.metadata.android.signing.release]
+path = "/home/djmcnab/.android/debug.keystore"
+keystore_password = "android"
+
+[package.metadata.android.application]
+debuggable = true
