@@ -767,7 +767,7 @@ dependencies = [
  "image",
  "js-sys",
  "ktx2",
- "naga 0.19.2",
+ "naga 0.19.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "naga_oil",
  "ruzstd",
  "serde",
@@ -775,7 +775,7 @@ dependencies = [
  "thread_local",
  "wasm-bindgen",
  "web-sys",
- "wgpu 0.19.3",
+ "wgpu",
 ]
 
 [[package]]
@@ -1435,18 +1435,7 @@ checksum = "96a6ac251f4a2aca6b3f91340350eab87ae57c3f127ffeb585e92bd336717991"
 [[package]]
 name = "d3d12"
 version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e3d747f100290a1ca24b752186f61f6637e1deffe3bf6320de6fcb29510a307"
-dependencies = [
- "bitflags 2.5.0",
- "libloading 0.8.3",
- "winapi",
-]
-
-[[package]]
-name = "d3d12"
-version = "0.19.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=8d0c5c7de5097affea131a52b82b046498400743#8d0c5c7de5097affea131a52b82b046498400743"
+source = "git+https://github.com/gfx-rs/wgpu?rev=2c9c7bd2ccd7d6eb5269c5f29edcc54f9f3c4db8#2c9c7bd2ccd7d6eb5269c5f29edcc54f9f3c4db8"
 dependencies = [
  "bitflags 2.5.0",
  "libloading 0.7.4",
@@ -2084,7 +2073,7 @@ dependencies = [
  "pollster",
  "scenes",
  "vello",
- "wgpu 0.19.0",
+ "wgpu",
 ]
 
 [[package]]
@@ -2489,21 +2478,6 @@ dependencies = [
 [[package]]
 name = "metal"
 version = "0.27.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c43f73953f8cbe511f021b58f18c3ce1c3d1ae13fe953293e13345bf83217f25"
-dependencies = [
- "bitflags 2.5.0",
- "block",
- "core-graphics-types",
- "foreign-types",
- "log",
- "objc",
- "paste",
-]
-
-[[package]]
-name = "metal"
-version = "0.27.0"
 source = "git+https://github.com/gfx-rs/metal-rs?rev=ff8fd3d6dc7792852f8a015458d7e6d42d7fb352#ff8fd3d6dc7792852f8a015458d7e6d42d7fb352"
 dependencies = [
  "bitflags 2.5.0",
@@ -2539,8 +2513,28 @@ dependencies = [
 
 [[package]]
 name = "naga"
-version = "0.19.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=8d0c5c7de5097affea131a52b82b046498400743#8d0c5c7de5097affea131a52b82b046498400743"
+version = "0.19.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50e3524642f53d9af419ab5e8dd29d3ba155708267667c2f3f06c88c9e130843"
+dependencies = [
+ "bit-set",
+ "bitflags 2.5.0",
+ "codespan-reporting",
+ "hexf-parse",
+ "indexmap 2.2.6",
+ "log",
+ "num-traits",
+ "pp-rs",
+ "rustc-hash",
+ "termcolor",
+ "thiserror",
+ "unicode-xid",
+]
+
+[[package]]
+name = "naga"
+version = "0.19.2"
+source = "git+https://github.com/gfx-rs/wgpu?rev=2c9c7bd2ccd7d6eb5269c5f29edcc54f9f3c4db8#2c9c7bd2ccd7d6eb5269c5f29edcc54f9f3c4db8"
 dependencies = [
  "arrayvec",
  "bit-set",
@@ -2558,27 +2552,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "naga"
-version = "0.19.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50e3524642f53d9af419ab5e8dd29d3ba155708267667c2f3f06c88c9e130843"
-dependencies = [
- "bit-set",
- "bitflags 2.5.0",
- "codespan-reporting",
- "hexf-parse",
- "indexmap 2.2.6",
- "log",
- "num-traits",
- "pp-rs",
- "rustc-hash",
- "spirv",
- "termcolor",
- "thiserror",
- "unicode-xid",
-]
-
-[[package]]
 name = "naga_oil"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2588,7 +2561,7 @@ dependencies = [
  "codespan-reporting",
  "data-encoding",
  "indexmap 2.2.6",
- "naga 0.19.2",
+ "naga 0.19.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "once_cell",
  "regex",
  "regex-syntax 0.8.3",
@@ -2728,7 +2701,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "915b1b472bc21c53464d6c8461c9d3af805ba1ef837e1cac254428f4a77177b1"
 dependencies = [
  "malloc_buf",
- "objc_exception",
 ]
 
 [[package]]
@@ -2778,15 +2750,6 @@ name = "objc2-encode"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d079845b37af429bfe5dfa76e6d087d788031045b25cfc6fd898486fd9847666"
-
-[[package]]
-name = "objc_exception"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad970fb455818ad6cba4c122ad012fae53ae8b4795f86378bce65e4f6bab2ca4"
-dependencies = [
- "cc",
-]
 
 [[package]]
 name = "once_cell"
@@ -3443,7 +3406,7 @@ dependencies = [
  "anyhow",
  "pollster",
  "vello",
- "wgpu 0.19.3",
+ "wgpu",
  "winit",
 ]
 
@@ -4073,7 +4036,7 @@ dependencies = [
  "skrifa",
  "tracing",
  "vello_encoding",
- "wgpu 0.19.0",
+ "wgpu",
  "wgpu-profiler",
 ]
 
@@ -4091,7 +4054,7 @@ dependencies = [
 name = "vello_shaders"
 version = "0.1.0"
 dependencies = [
- "naga 0.19.2",
+ "naga 0.19.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
 ]
 
@@ -4113,7 +4076,7 @@ dependencies = [
  "png",
  "pollster",
  "vello",
- "wgpu 0.19.0",
+ "wgpu",
 ]
 
 [[package]]
@@ -4468,8 +4431,8 @@ checksum = "53a85b86a771b1c87058196170769dd264f66c0782acf1ae6cc51bfd64b39082"
 
 [[package]]
 name = "wgpu"
-version = "0.19.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=8d0c5c7de5097affea131a52b82b046498400743#8d0c5c7de5097affea131a52b82b046498400743"
+version = "0.19.3"
+source = "git+https://github.com/gfx-rs/wgpu?rev=2c9c7bd2ccd7d6eb5269c5f29edcc54f9f3c4db8#2c9c7bd2ccd7d6eb5269c5f29edcc54f9f3c4db8"
 dependencies = [
  "arrayvec",
  "cfg-if",
@@ -4477,7 +4440,7 @@ dependencies = [
  "document-features",
  "js-sys",
  "log",
- "naga 0.19.0",
+ "naga 0.19.2 (git+https://github.com/gfx-rs/wgpu?rev=2c9c7bd2ccd7d6eb5269c5f29edcc54f9f3c4db8)",
  "parking_lot",
  "profiling",
  "raw-window-handle",
@@ -4486,40 +4449,15 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "wgpu-core 0.19.0",
- "wgpu-hal 0.19.0",
- "wgpu-types 0.19.0",
-]
-
-[[package]]
-name = "wgpu"
-version = "0.19.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4b1213b52478a7631d6e387543ed8f642bc02c578ef4e3b49aca2a29a7df0cb"
-dependencies = [
- "arrayvec",
- "cfg-if",
- "cfg_aliases",
- "js-sys",
- "log",
- "naga 0.19.2",
- "parking_lot",
- "profiling",
- "raw-window-handle",
- "smallvec",
- "static_assertions",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "wgpu-core 0.19.3",
- "wgpu-hal 0.19.3",
- "wgpu-types 0.19.2",
+ "wgpu-core",
+ "wgpu-hal",
+ "wgpu-types",
 ]
 
 [[package]]
 name = "wgpu-core"
-version = "0.19.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=8d0c5c7de5097affea131a52b82b046498400743#8d0c5c7de5097affea131a52b82b046498400743"
+version = "0.19.3"
+source = "git+https://github.com/gfx-rs/wgpu?rev=2c9c7bd2ccd7d6eb5269c5f29edcc54f9f3c4db8#2c9c7bd2ccd7d6eb5269c5f29edcc54f9f3c4db8"
 dependencies = [
  "arrayvec",
  "bit-vec",
@@ -4529,7 +4467,7 @@ dependencies = [
  "document-features",
  "indexmap 2.2.6",
  "log",
- "naga 0.19.0",
+ "naga 0.19.2 (git+https://github.com/gfx-rs/wgpu?rev=2c9c7bd2ccd7d6eb5269c5f29edcc54f9f3c4db8)",
  "once_cell",
  "parking_lot",
  "profiling",
@@ -4538,40 +4476,14 @@ dependencies = [
  "smallvec",
  "thiserror",
  "web-sys",
- "wgpu-hal 0.19.0",
- "wgpu-types 0.19.0",
-]
-
-[[package]]
-name = "wgpu-core"
-version = "0.19.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9f6b033c2f00ae0bc8ea872c5989777c60bc241aac4e58b24774faa8b391f78"
-dependencies = [
- "arrayvec",
- "bit-vec",
- "bitflags 2.5.0",
- "cfg_aliases",
- "codespan-reporting",
- "indexmap 2.2.6",
- "log",
- "naga 0.19.2",
- "once_cell",
- "parking_lot",
- "profiling",
- "raw-window-handle",
- "rustc-hash",
- "smallvec",
- "thiserror",
- "web-sys",
- "wgpu-hal 0.19.3",
- "wgpu-types 0.19.2",
+ "wgpu-hal",
+ "wgpu-types",
 ]
 
 [[package]]
 name = "wgpu-hal"
-version = "0.19.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=8d0c5c7de5097affea131a52b82b046498400743#8d0c5c7de5097affea131a52b82b046498400743"
+version = "0.19.3"
+source = "git+https://github.com/gfx-rs/wgpu?rev=2c9c7bd2ccd7d6eb5269c5f29edcc54f9f3c4db8#2c9c7bd2ccd7d6eb5269c5f29edcc54f9f3c4db8"
 dependencies = [
  "android_system_properties",
  "arrayvec",
@@ -4581,7 +4493,7 @@ dependencies = [
  "block",
  "cfg_aliases",
  "core-graphics-types",
- "d3d12 0.19.0 (git+https://github.com/gfx-rs/wgpu?rev=8d0c5c7de5097affea131a52b82b046498400743)",
+ "d3d12",
  "glow",
  "glutin_wgl_sys",
  "gpu-alloc",
@@ -4593,8 +4505,8 @@ dependencies = [
  "libc",
  "libloading 0.7.4",
  "log",
- "metal 0.27.0 (git+https://github.com/gfx-rs/metal-rs?rev=ff8fd3d6dc7792852f8a015458d7e6d42d7fb352)",
- "naga 0.19.0",
+ "metal",
+ "naga 0.19.2 (git+https://github.com/gfx-rs/wgpu?rev=2c9c7bd2ccd7d6eb5269c5f29edcc54f9f3c4db8)",
  "ndk-sys",
  "objc",
  "once_cell",
@@ -4608,52 +4520,7 @@ dependencies = [
  "thiserror",
  "wasm-bindgen",
  "web-sys",
- "wgpu-types 0.19.0",
- "winapi",
-]
-
-[[package]]
-name = "wgpu-hal"
-version = "0.19.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49f972c280505ab52ffe17e94a7413d9d54b58af0114ab226b9fc4999a47082e"
-dependencies = [
- "android_system_properties",
- "arrayvec",
- "ash",
- "bit-set",
- "bitflags 2.5.0",
- "block",
- "cfg_aliases",
- "core-graphics-types",
- "d3d12 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "glow",
- "glutin_wgl_sys",
- "gpu-alloc",
- "gpu-allocator",
- "gpu-descriptor",
- "hassle-rs",
- "js-sys",
- "khronos-egl",
- "libc",
- "libloading 0.8.3",
- "log",
- "metal 0.27.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "naga 0.19.2",
- "ndk-sys",
- "objc",
- "once_cell",
- "parking_lot",
- "profiling",
- "range-alloc",
- "raw-window-handle",
- "renderdoc-sys",
- "rustc-hash",
- "smallvec",
- "thiserror",
- "wasm-bindgen",
- "web-sys",
- "wgpu-types 0.19.2",
+ "wgpu-types",
  "winapi",
 ]
 
@@ -4665,24 +4532,13 @@ checksum = "198b96a1940b527c6e21ab829b3630eb4e8ffb602fd12839d8c5e088c8e06192"
 dependencies = [
  "parking_lot",
  "thiserror",
- "wgpu 0.19.3",
-]
-
-[[package]]
-name = "wgpu-types"
-version = "0.19.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=8d0c5c7de5097affea131a52b82b046498400743#8d0c5c7de5097affea131a52b82b046498400743"
-dependencies = [
- "bitflags 2.5.0",
- "js-sys",
- "web-sys",
+ "wgpu",
 ]
 
 [[package]]
 name = "wgpu-types"
 version = "0.19.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b671ff9fb03f78b46ff176494ee1ebe7d603393f42664be55b64dc8d53969805"
+source = "git+https://github.com/gfx-rs/wgpu?rev=2c9c7bd2ccd7d6eb5269c5f29edcc54f9f3c4db8#2c9c7bd2ccd7d6eb5269c5f29edcc54f9f3c4db8"
 dependencies = [
  "bitflags 2.5.0",
  "js-sys",
@@ -5064,7 +4920,7 @@ dependencies = [
  "vello",
  "wasm-bindgen-futures",
  "web-sys",
- "wgpu 0.19.0",
+ "wgpu",
  "wgpu-profiler",
  "winit",
 ]
