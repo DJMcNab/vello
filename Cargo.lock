@@ -1329,6 +1329,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "glyph_comparisons"
+version = "0.1.0"
+dependencies = [
+ "glifo",
+ "parley",
+ "vello_cpu",
+]
+
+[[package]]
 name = "gpu-allocator"
 version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
