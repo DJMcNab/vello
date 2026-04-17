@@ -2,8 +2,9 @@
 name = "glyph_comparisons"
 version = "0.1.0"
 edition = "2024"
+publish = false
 
 [dependencies]
-vello_cpu = { workspace = true, features = ["std", "png"] }
+vello_cpu = { workspace = true, features = ["std", "png", "f32_pipeline"] }
 glifo = { workspace = true }
 parley = { version = "0.5.0" }

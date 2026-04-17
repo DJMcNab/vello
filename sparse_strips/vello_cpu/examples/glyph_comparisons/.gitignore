@@ -1,0 +1,5 @@
+outputs/*
+!outputs/.gitkeep
+fonts/*
+!fonts/README.md
+!fonts/download_fonts.sh

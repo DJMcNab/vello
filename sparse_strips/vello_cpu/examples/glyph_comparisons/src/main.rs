@@ -1,91 +1,267 @@
 // Copyright 2026 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-//! Random text stress scene.
+//! Text input value
 
-use core::fmt;
 use glifo::Glyph;
 use parley::FontFamily;
+use parley::fontique::{Collection, CollectionOptions, SourceCache};
 use parley::{
     Alignment, AlignmentOptions, FontContext, GlyphRun, Layout, LayoutContext,
     PositionedLayoutItem, StyleProperty,
 };
+use std::path::Path;
 use vello_cpu::color::palette::css;
 use vello_cpu::color::{AlphaColor, Srgb};
+use vello_cpu::kurbo::Rect;
+use vello_cpu::peniko::Color;
 use vello_cpu::{Level, Pixmap, RenderContext, RenderMode, RenderSettings, Resources};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct ColorBrush {
-    color: AlphaColor<Srgb>,
+const TEXT: &str =
+    "Lorem ipsum dolor sit amet,\nconsectetur adipiscing elit.\nSed ornare arcu lectus.";
+
+fn main() {
+    let mut layout_cx = LayoutContext::new();
+    let mut font_cx = new_font_context();
+    // We assume that we're on the same device.
+    let outputs_folder = Path::new(env!("CARGO_MANIFEST_DIR")).join("outputs");
+
+    tidy_outputs(&outputs_folder);
+
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Arimo").unwrap(),
+        "unhinted_arimo_no_gamma.png",
+        TestCase::default(),
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Arimo").unwrap(),
+        "hinted_arimo_no_gamma.png",
+        TestCase {
+            hinting_enabled: true,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Arimo").unwrap(),
+        "unhinted_arimo_no_gamma_120.png",
+        TestCase {
+            font_size: 120.,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Arimo").unwrap(),
+        "unhinted_arimo_gamma.png",
+        TestCase {
+            gamma_correction: true,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Arimo").unwrap(),
+        "unhinted_arimo_dark_bg.png",
+        TestCase {
+            foreground_color: css::WHITE,
+            background_color: css::BLACK,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Arimo").unwrap(),
+        "unhinted_arimo_dark_bg_gamma.png",
+        TestCase {
+            gamma_correction: true,
+            foreground_color: css::WHITE,
+            background_color: css::BLACK,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Arimo").unwrap(),
+        "unhinted_arimo_dark_bg_120.png",
+        TestCase {
+            font_size: 120.,
+            foreground_color: css::WHITE,
+            background_color: css::BLACK,
+            ..TestCase::default()
+        },
+    );
 }
 
-impl Default for ColorBrush {
+struct TestCase {
+    hinting_enabled: bool,
+    gamma_correction: bool,
+    foreground_color: Color,
+    background_color: Color,
+    font_size: f32,
+}
+
+impl Default for TestCase {
     fn default() -> Self {
-        Self { color: css::WHITE }
+        Self {
+            hinting_enabled: false,
+            gamma_correction: false,
+            foreground_color: Color::BLACK,
+            background_color: Color::WHITE,
+            font_size: 12.,
+        }
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-const ROBOTO_FONT: &[u8] = include_bytes!("../../../examples/assets/roboto/Roboto-Regular.ttf");
+fn text_case(
+    layout_cx: &mut LayoutContext<ColorBrush>,
+    font_cx: &mut FontContext,
+    outputs_folder: &Path,
+    font: FontFamily<'static>,
+    name: &str,
+    args: TestCase,
+) {
+    let TestCase {
+        hinting_enabled,
+        gamma_correction,
+        foreground_color,
+        background_color,
+        font_size,
+    } = args;
 
-struct Segment {
-    layout: Layout<ColorBrush>,
-    x: f32,
-    y: f32,
+    let layout = build_layout(layout_cx, font_cx, font, foreground_color, font_size);
+    let width = layout.width().ceil() + 20.;
+    let height = layout.height().ceil() + 10.;
+
+    // Ideally, we'd reuse the same render context, but it isn't possible to resize them.
+    let settings = RenderSettings {
+        level: Level::new(),
+        num_threads: 0,
+        // Required for gamma correction to be enabled.
+        render_mode: RenderMode::OptimizeQuality,
+    };
+    let mut ctx = RenderContext::new_with(width as u16, height as u16, settings);
+    // The docs in basic.rs require us to recreate the resources when we make a new ctx.
+    let mut resources = Resources::new();
+    ctx.reset();
+    if gamma_correction {
+        ctx.set_gamma_correction(true);
+    }
+
+    ctx.set_paint(background_color);
+    ctx.fill_rect(&Rect::from_points(
+        (-5., -5.),
+        (width as f64 + 5., height as f64 + 10.),
+    ));
+
+    render_layout(&mut ctx, &mut resources, &layout, 10., 5., hinting_enabled);
+    ctx.flush();
+
+    let mut pixmap = Pixmap::new(width as u16, height as u16);
+    ctx.render_to_pixmap(&mut resources, &mut pixmap);
+
+    let png_data = pixmap.into_png().unwrap();
+    let path = outputs_folder.join(name);
+
+    std::fs::write(&path, png_data).unwrap();
+    let abs_path = path.canonicalize().unwrap();
+    let url = format!("file://{}", abs_path.display());
+    eprintln!(
+        // Render as a terminal hyperlink; this avoids issues if the path to the workspace root contains a space.
+        "Wrote output image for \x1b]8;;{url}\x1b\\{name}\x1b]8;;\x1b\\. Dimensions: {}x{}",
+        width, height
+    );
 }
 
-impl fmt::Debug for Segment {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Segment")
-            .field("x", &self.x)
-            .field("y", &self.y)
-            .finish_non_exhaustive()
+fn tidy_outputs(outputs_folder: &std::path::PathBuf) {
+    for entry in std::fs::read_dir(outputs_folder).unwrap().flatten() {
+        let path = entry.path();
+        if path.extension().is_some_and(|ext| ext == "png") {
+            std::fs::remove_file(&path).unwrap();
+        }
     }
 }
 
 fn new_font_context() -> FontContext {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        FontContext::new()
-    }
+    let mut font_cx = FontContext {
+        collection: Collection::new(CollectionOptions {
+            shared: false,
+            system_fonts: false,
+        }),
+        source_cache: SourceCache::default(),
+    };
 
-    #[cfg(target_arch = "wasm32")]
-    {
-        let mut font_cx = FontContext::new();
-        font_cx
-            .collection
-            .register_fonts(ROBOTO_FONT.to_vec().into(), None);
-        font_cx
+    let fonts_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("fonts");
+    for font_file in ["SourceSerif4Variable-Roman.ttf", "Arimo.ttf"] {
+        let path = fonts_dir.join(font_file);
+        match std::fs::read(&path) {
+            Ok(data) => {
+                font_cx.collection.register_fonts(data.into(), None);
+            }
+            Err(e) => eprintln!(
+                "Warning: could not load {font_file}: {e}\n\
+                 See fonts/README.md for download instructions."
+            ),
+        }
     }
+    // Load Roboto from the workspace assets (used for quick comparisons, not downloaded separately)
+    let roboto_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../../examples/assets/roboto/Roboto-Regular.ttf");
+    match std::fs::read(&roboto_path) {
+        Ok(data) => {
+            font_cx.collection.register_fonts(data.into(), None);
+        }
+        Err(e) => eprintln!("Warning: could not load Roboto-Regular.ttf: {e}"),
+    }
+    font_cx
 }
 
-fn build_segment(layout_cx: &mut LayoutContext<ColorBrush>, font_cx: &mut FontContext) -> Segment {
-    let text = "Hello World";
-    let color = css::YELLOW;
-    let font_size = 10.;
-    let x = 10.;
-    let y = 20.;
+fn build_layout(
+    layout_cx: &mut LayoutContext<ColorBrush>,
+    font_cx: &mut FontContext,
+    font: FontFamily<'static>,
+    foreground_color: Color,
+    font_size: f32,
+) -> Layout<ColorBrush> {
+    let text = TEXT;
 
     let mut builder = layout_cx.ranged_builder(font_cx, text, 1.0, true);
-    builder.push_default(FontFamily::parse("Roboto").unwrap());
+    builder.push_default(font);
     builder.push_default(StyleProperty::FontSize(font_size));
-    builder.push_default(StyleProperty::Brush(ColorBrush { color }));
+    builder.push_default(StyleProperty::Brush(ColorBrush {
+        color: foreground_color,
+    }));
 
     let mut layout: Layout<ColorBrush> = builder.build(text);
-    let max_advance = Some(600.0);
+    let max_advance = None;
     layout.break_all_lines(max_advance);
     layout.align(max_advance, Alignment::Start, AlignmentOptions::default());
 
-    Segment { layout, x, y }
+    layout
 }
 
-fn render_segment(
+fn render_layout(
     ctx: &mut RenderContext,
     resources: &mut Resources,
     layout: &Layout<ColorBrush>,
     offset_x: f32,
     offset_y: f32,
-
     hinting_enabled: bool,
 ) {
     for line in layout.lines() {
@@ -99,6 +275,8 @@ fn render_segment(
                     offset_y,
                     hinting_enabled,
                 );
+            } else {
+                unreachable!()
             }
         }
     }
@@ -110,7 +288,6 @@ fn render_glyph_run(
     glyph_run: &GlyphRun<'_, ColorBrush>,
     offset_x: f32,
     offset_y: f32,
-
     hinting_enabled: bool,
 ) {
     let mut run_x = glyph_run.offset();
@@ -137,35 +314,13 @@ fn render_glyph_run(
         .fill_glyphs(glyphs);
 }
 
-fn main() {
-    let settings = RenderSettings {
-        level: Level::new(),
-        num_threads: 0,
-        // Required for Gamma Correction to be enabled.
-        render_mode: RenderMode::OptimizeQuality,
-    };
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct ColorBrush {
+    color: AlphaColor<Srgb>,
+}
 
-    let mut ctx = RenderContext::new_with(100, 100, settings);
-    let mut resources = Resources::new();
-    let mut layout_cx = LayoutContext::new();
-    let mut font_cx = new_font_context();
-    let segment = build_segment(&mut layout_cx, &mut font_cx);
-    render_segment(
-        &mut ctx,
-        &mut resources,
-        &segment.layout,
-        segment.x,
-        segment.y,
-        false,
-    );
-
-    ctx.flush();
-
-    let mut pixmap_1 = Pixmap::new(100, 100);
-    ctx.render_to_pixmap(&mut resources, &mut pixmap_1);
-
-    let png_1 = pixmap_1.into_png().unwrap();
-    std::fs::write("example_basic1.png", png_1).unwrap();
-
-    ctx.reset();
+impl Default for ColorBrush {
+    fn default() -> Self {
+        Self { color: css::WHITE }
+    }
 }
