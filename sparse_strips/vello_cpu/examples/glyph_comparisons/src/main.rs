@@ -18,7 +18,7 @@ use vello_cpu::peniko::Color;
 use vello_cpu::{Level, Pixmap, RenderContext, RenderMode, RenderSettings, Resources};
 
 const TEXT: &str =
-    "Lorem ipsum dolor sit amet,\nconsectetur adipiscing elit.\nSed ornare arcu lectus.";
+    "Lorem ipsum dolor sit amet,\nconsectetur adipiscing elit.\nSed ornare arcu lectus.\nwwwwwwww";
 
 fn main() {
     let mut layout_cx = LayoutContext::new();
@@ -33,7 +33,7 @@ fn main() {
         &mut font_cx,
         &outputs_folder,
         FontFamily::parse("Arimo").unwrap(),
-        "unhinted_arimo_no_gamma.png",
+        "arimo.png",
         TestCase::default(),
     );
     text_case(
@@ -41,7 +41,7 @@ fn main() {
         &mut font_cx,
         &outputs_folder,
         FontFamily::parse("Arimo").unwrap(),
-        "hinted_arimo_no_gamma.png",
+        "arimo_hinted.png",
         TestCase {
             hinting_enabled: true,
             ..TestCase::default()
@@ -52,9 +52,9 @@ fn main() {
         &mut font_cx,
         &outputs_folder,
         FontFamily::parse("Arimo").unwrap(),
-        "unhinted_arimo_no_gamma_120.png",
+        "arimo_24.png",
         TestCase {
-            font_size: 120.,
+            font_size: 24.,
             ..TestCase::default()
         },
     );
@@ -63,7 +63,7 @@ fn main() {
         &mut font_cx,
         &outputs_folder,
         FontFamily::parse("Arimo").unwrap(),
-        "unhinted_arimo_gamma.png",
+        "arimo_gamma.png",
         TestCase {
             gamma_correction: true,
             ..TestCase::default()
@@ -74,7 +74,7 @@ fn main() {
         &mut font_cx,
         &outputs_folder,
         FontFamily::parse("Arimo").unwrap(),
-        "unhinted_arimo_dark_bg.png",
+        "arimo_dark_bg.png",
         TestCase {
             foreground_color: css::WHITE,
             background_color: css::BLACK,
@@ -86,7 +86,7 @@ fn main() {
         &mut font_cx,
         &outputs_folder,
         FontFamily::parse("Arimo").unwrap(),
-        "unhinted_arimo_dark_bg_gamma.png",
+        "arimo_dark_bg_gamma.png",
         TestCase {
             gamma_correction: true,
             foreground_color: css::WHITE,
@@ -99,11 +99,93 @@ fn main() {
         &mut font_cx,
         &outputs_folder,
         FontFamily::parse("Arimo").unwrap(),
-        "unhinted_arimo_dark_bg_120.png",
+        "arimo_dark_bg_24.png",
         TestCase {
-            font_size: 120.,
+            font_size: 24.,
             foreground_color: css::WHITE,
             background_color: css::BLACK,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Arimo").unwrap(),
+        "arimo_blue_on_green.png",
+        TestCase {
+            font_size: 12.,
+            foreground_color: css::BLUE,
+            background_color: css::LIME,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Arimo").unwrap(),
+        "arimo_blue_on_green_gamma.png",
+        TestCase {
+            font_size: 12.,
+            gamma_correction: true,
+            foreground_color: css::BLUE,
+            background_color: css::LIME,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Arimo").unwrap(),
+        "arimo_red_on_green.png",
+        TestCase {
+            font_size: 12.,
+            foreground_color: css::RED,
+            background_color: css::LIME,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Arimo").unwrap(),
+        "arimo_red_on_green_gamma.png",
+        TestCase {
+            font_size: 12.,
+            gamma_correction: true,
+            foreground_color: css::RED,
+            background_color: css::LIME,
+            ..TestCase::default()
+        },
+    );
+
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Arimo").unwrap(),
+        "0.5_black.png",
+        TestCase {
+            font_size: 12.,
+            foreground_color: css::BLACK.with_alpha(0.5),
+            background_color: css::WHITE,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Arimo").unwrap(),
+        "0.5_black_gamma.png",
+        TestCase {
+            font_size: 12.,
+            gamma_correction: true,
+            foreground_color: css::BLACK.with_alpha(0.5),
+            background_color: css::WHITE,
             ..TestCase::default()
         },
     );
