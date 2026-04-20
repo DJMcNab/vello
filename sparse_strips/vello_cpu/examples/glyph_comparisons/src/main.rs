@@ -11,11 +11,14 @@ use parley::{
     PositionedLayoutItem, StyleProperty,
 };
 use std::path::Path;
+use std::sync::Arc;
 use vello_cpu::color::palette::css;
 use vello_cpu::color::{AlphaColor, Srgb};
-use vello_cpu::kurbo::Rect;
-use vello_cpu::peniko::Color;
-use vello_cpu::{Level, Pixmap, RenderContext, RenderMode, RenderSettings, Resources};
+use vello_cpu::kurbo::{Affine, Rect};
+use vello_cpu::peniko::{Color, Extend, ImageQuality, ImageSampler};
+use vello_cpu::{
+    Image, ImageSource, Level, Pixmap, RenderContext, RenderMode, RenderSettings, Resources,
+};
 
 const TEXT: &str =
     "Lorem ipsum dolor sit amet,\nconsectetur adipiscing elit.\nSed ornare arcu lectus.\nwwwwwwww";
@@ -189,6 +192,190 @@ fn main() {
             ..TestCase::default()
         },
     );
+
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto.png",
+        TestCase::default(),
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_hinted.png",
+        TestCase {
+            hinting_enabled: true,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_rotated.png",
+        TestCase {
+            rotation: -0.5f64.to_radians(),
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_hinted_rotated.png",
+        TestCase {
+            hinting_enabled: true,
+            rotation: -0.5f64.to_radians(),
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_24.png",
+        TestCase {
+            font_size: 24.,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_gamma.png",
+        TestCase {
+            gamma_correction: true,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_dark_bg.png",
+        TestCase {
+            foreground_color: css::WHITE,
+            background_color: css::BLACK,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_dark_bg_gamma.png",
+        TestCase {
+            gamma_correction: true,
+            foreground_color: css::WHITE,
+            background_color: css::BLACK,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_dark_bg_24.png",
+        TestCase {
+            font_size: 24.,
+            foreground_color: css::WHITE,
+            background_color: css::BLACK,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_blue_on_green.png",
+        TestCase {
+            font_size: 12.,
+            foreground_color: css::BLUE,
+            background_color: css::LIME,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_blue_on_green_gamma.png",
+        TestCase {
+            font_size: 12.,
+            gamma_correction: true,
+            foreground_color: css::BLUE,
+            background_color: css::LIME,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_red_on_green.png",
+        TestCase {
+            font_size: 12.,
+            foreground_color: css::RED,
+            background_color: css::LIME,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_red_on_green_gamma.png",
+        TestCase {
+            font_size: 12.,
+            gamma_correction: true,
+            foreground_color: css::RED,
+            background_color: css::LIME,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_0.5_black.png",
+        TestCase {
+            font_size: 12.,
+            foreground_color: css::BLACK.with_alpha(0.5),
+            background_color: css::WHITE,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_0.5_black_gamma.png",
+        TestCase {
+            font_size: 12.,
+            gamma_correction: true,
+            foreground_color: css::BLACK.with_alpha(0.5),
+            background_color: css::WHITE,
+            ..TestCase::default()
+        },
+    );
 }
 
 struct TestCase {
@@ -197,6 +384,8 @@ struct TestCase {
     foreground_color: Color,
     background_color: Color,
     font_size: f32,
+    /// Rotation angle in radians, applied about the center of the canvas.
+    rotation: f64,
 }
 
 impl Default for TestCase {
@@ -207,6 +396,7 @@ impl Default for TestCase {
             foreground_color: Color::BLACK,
             background_color: Color::WHITE,
             font_size: 12.,
+            rotation: 0.,
         }
     }
 }
@@ -225,6 +415,7 @@ fn text_case(
         foreground_color,
         background_color,
         font_size,
+        rotation,
     } = args;
 
     let layout = build_layout(layout_cx, font_cx, font, foreground_color, font_size);
@@ -252,21 +443,60 @@ fn text_case(
         (width as f64 + 5., height as f64 + 10.),
     ));
 
+    if rotation != 0. {
+        let cx = width as f64 / 2.;
+        let cy = height as f64 / 2.;
+        ctx.set_transform(
+            Affine::translate((cx, cy)) * Affine::rotate(rotation) * Affine::translate((-cx, -cy)),
+        );
+    }
     render_layout(&mut ctx, &mut resources, &layout, 10., 5., hinting_enabled);
     ctx.flush();
 
     let mut pixmap = Pixmap::new(width as u16, height as u16);
     ctx.render_to_pixmap(&mut resources, &mut pixmap);
 
-    let png_data = pixmap.into_png().unwrap();
     let path = outputs_folder.join(name);
-
-    std::fs::write(&path, png_data).unwrap();
+    std::fs::write(&path, pixmap.clone().into_png().unwrap()).unwrap();
     let abs_path = path.canonicalize().unwrap();
     let url = format!("file://{}", abs_path.display());
+
+    const SCALE: f64 = 4.;
+    let scaled_width = (width as f64 * SCALE) as u16;
+    let scaled_height = (height as f64 * SCALE) as u16;
+    let scaled_settings = RenderSettings {
+        level: Level::new(),
+        num_threads: 0,
+        render_mode: RenderMode::OptimizeQuality,
+    };
+    let mut scaled_ctx = RenderContext::new_with(scaled_width, scaled_height, scaled_settings);
+    let mut scaled_resources = Resources::new();
+    scaled_ctx.reset();
+    let image = Image {
+        image: ImageSource::Pixmap(Arc::new(pixmap)),
+        sampler: ImageSampler {
+            x_extend: Extend::Pad,
+            y_extend: Extend::Pad,
+            quality: ImageQuality::Low,
+            ..Default::default()
+        },
+    };
+    scaled_ctx.set_paint(image);
+    scaled_ctx.set_paint_transform(Affine::scale(SCALE));
+    scaled_ctx.fill_rect(&Rect::from_points(
+        (0., 0.),
+        (scaled_width as f64, scaled_height as f64),
+    ));
+    scaled_ctx.flush();
+    let mut scaled_pixmap = Pixmap::new(scaled_width, scaled_height);
+    scaled_ctx.render_to_pixmap(&mut scaled_resources, &mut scaled_pixmap);
+    let scaled_path = outputs_folder.join("scaled").join(name);
+    std::fs::write(&scaled_path, scaled_pixmap.into_png().unwrap()).unwrap();
+    let scaled_url = format!("file://{}", scaled_path.canonicalize().unwrap().display());
+
     eprintln!(
         // Render as a terminal hyperlink; this avoids issues if the path to the workspace root contains a space.
-        "Wrote output image for \x1b]8;;{url}\x1b\\{name}\x1b]8;;\x1b\\. Dimensions: {}x{}",
+        "Wrote output image for \x1b]8;;{url}\x1b\\{name}\x1b]8;;\x1b\\ [\x1b]8;;{scaled_url}\x1b\\scaled\x1b]8;;\x1b\\]. Dimensions: {}x{}",
         width, height
     );
 }
@@ -276,6 +506,15 @@ fn tidy_outputs(outputs_folder: &std::path::PathBuf) {
         let path = entry.path();
         if path.extension().is_some_and(|ext| ext == "png") {
             std::fs::remove_file(&path).unwrap();
+        }
+    }
+    let scaled_folder = outputs_folder.join("scaled");
+    if scaled_folder.is_dir() {
+        for entry in std::fs::read_dir(&scaled_folder).unwrap().flatten() {
+            let path = entry.path();
+            if path.extension().is_some_and(|ext| ext == "png") {
+                std::fs::remove_file(&path).unwrap();
+            }
         }
     }
 }
@@ -302,7 +541,6 @@ fn new_font_context() -> FontContext {
             ),
         }
     }
-    // Load Roboto from the workspace assets (used for quick comparisons, not downloaded separately)
     let roboto_path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../../examples/assets/roboto/Roboto-Regular.ttf");
     match std::fs::read(&roboto_path) {

@@ -1,5 +1,11 @@
+# Ignore the contents of the outputs folder, but track its existence in git.
 outputs/*
 !outputs/.gitkeep
+!outputs/scaled/
+outputs/scaled/*
+!outputs/scaled/.gitkeep
+
+# The fonts are downloaded manually from GitHub, and stored in this folder.
 fonts/*
 !fonts/README.md
 !fonts/download_fonts.sh
