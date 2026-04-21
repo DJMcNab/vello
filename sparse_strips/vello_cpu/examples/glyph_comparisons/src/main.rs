@@ -14,7 +14,7 @@ use std::path::Path;
 use std::sync::Arc;
 use vello_cpu::color::palette::css;
 use vello_cpu::color::{AlphaColor, Srgb};
-use vello_cpu::kurbo::{Affine, Rect};
+use vello_cpu::kurbo::{Affine, Rect, Stroke};
 use vello_cpu::peniko::{Color, Extend, ImageQuality, ImageSampler};
 use vello_cpu::{
     Image, ImageSource, Level, Pixmap, RenderContext, RenderMode, RenderSettings, Resources,
@@ -376,6 +376,54 @@ fn main() {
             ..TestCase::default()
         },
     );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_stem_darkening.png",
+        TestCase {
+            stem_darkening: true,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_stem_darkening_gamma.png",
+        TestCase {
+            stem_darkening: true,
+            gamma_correction: true,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_stem_darkening_24.png",
+        TestCase {
+            stem_darkening: true,
+            font_size: 24.,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
+        "roboto_stem_darkening_dark_bg.png",
+        TestCase {
+            stem_darkening: true,
+            foreground_color: css::WHITE,
+            background_color: css::BLACK,
+            ..TestCase::default()
+        },
+    );
 }
 
 struct TestCase {
@@ -386,6 +434,9 @@ struct TestCase {
     font_size: f32,
     /// Rotation angle in radians, applied about the center of the canvas.
     rotation: f64,
+    /// Emulated stem darkening: draws the glyph outline as an additional stroke.
+    /// Stroke width is `min(0.3, 0.015125 * font_size)`.
+    stem_darkening: bool,
 }
 
 impl Default for TestCase {
@@ -397,6 +448,7 @@ impl Default for TestCase {
             background_color: Color::WHITE,
             font_size: 12.,
             rotation: 0.,
+            stem_darkening: false,
         }
     }
 }
@@ -416,6 +468,7 @@ fn text_case(
         background_color,
         font_size,
         rotation,
+        stem_darkening,
     } = args;
 
     let layout = build_layout(layout_cx, font_cx, font, foreground_color, font_size);
@@ -450,7 +503,15 @@ fn text_case(
             Affine::translate((cx, cy)) * Affine::rotate(rotation) * Affine::translate((-cx, -cy)),
         );
     }
-    render_layout(&mut ctx, &mut resources, &layout, 10., 5., hinting_enabled);
+    render_layout(
+        &mut ctx,
+        &mut resources,
+        &layout,
+        10.,
+        5.,
+        hinting_enabled,
+        stem_darkening,
+    );
     ctx.flush();
 
     let mut pixmap = Pixmap::new(width as u16, height as u16);
@@ -583,6 +644,7 @@ fn render_layout(
     offset_x: f32,
     offset_y: f32,
     hinting_enabled: bool,
+    stem_darkening: bool,
 ) {
     for line in layout.lines() {
         for item in line.items() {
@@ -594,6 +656,7 @@ fn render_layout(
                     offset_x,
                     offset_y,
                     hinting_enabled,
+                    stem_darkening,
                 );
             } else {
                 unreachable!()
@@ -609,29 +672,47 @@ fn render_glyph_run(
     offset_x: f32,
     offset_y: f32,
     hinting_enabled: bool,
+    stem_darkening: bool,
 ) {
     let mut run_x = glyph_run.offset();
     let run_y = glyph_run.baseline();
-    let glyphs = glyph_run.glyphs().map(move |glyph| {
-        let glyph_x = offset_x + run_x + glyph.x;
-        let glyph_y = offset_y + run_y - glyph.y;
-        run_x += glyph.advance;
+    let glyphs: Vec<Glyph> = glyph_run
+        .glyphs()
+        .map(move |glyph| {
+            let glyph_x = offset_x + run_x + glyph.x;
+            let glyph_y = offset_y + run_y - glyph.y;
+            run_x += glyph.advance;
 
-        Glyph {
-            id: glyph.id as u32,
-            x: glyph_x,
-            y: glyph_y,
-        }
-    });
+            Glyph {
+                id: glyph.id as u32,
+                x: glyph_x,
+                y: glyph_y,
+            }
+        })
+        .collect();
 
     let run = glyph_run.run();
     let style = glyph_run.style();
     ctx.set_paint(style.brush.color);
+
+    if stem_darkening {
+        let stroke_width = (0.015125_f32 * run.font_size()).min(0.3);
+        ctx.set_stroke(Stroke {
+            width: stroke_width as f64,
+            ..Default::default()
+        });
+        ctx.glyph_run(resources, run.font())
+            .font_size(run.font_size())
+            .hint(hinting_enabled)
+            .atlas_cache(false)
+            .stroke_glyphs(glyphs.iter().copied());
+    }
+
     ctx.glyph_run(resources, run.font())
         .font_size(run.font_size())
         .hint(hinting_enabled)
         .atlas_cache(false)
-        .fill_glyphs(glyphs);
+        .fill_glyphs(glyphs.into_iter());
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
