@@ -21,7 +21,8 @@ use vello_cpu::{
 };
 
 const TEXT: &str =
-    "Lorem ipsum dolor sit amet,\nconsectetur adipiscing elit.\nSed ornare arcu lectus.\nwwwwwwww";
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ornare arcu lectus.
+wwwwwwww";
 
 fn main() {
     let mut layout_cx = LayoutContext::new();
@@ -30,6 +31,108 @@ fn main() {
     let outputs_folder = Path::new(env!("CARGO_MANIFEST_DIR")).join("outputs");
 
     tidy_outputs(&outputs_folder);
+
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Source Serif 4 Variable").unwrap(),
+        "serif.png",
+        TestCase::default(),
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Source Serif 4 Variable").unwrap(),
+        "serif_hinted.png",
+        TestCase {
+            hinting_enabled: true,
+            ..TestCase::default()
+        },
+    );
+
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Source Serif 4 Variable").unwrap(),
+        "serif_stem_darkening_gamma.png",
+        TestCase {
+            stem_darkening: true,
+            gamma_correction: true,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Source Serif 4 Variable").unwrap(),
+        "serif_stem_darkening_gamma_hinted.png",
+        TestCase {
+            stem_darkening: true,
+            gamma_correction: true,
+            hinting_enabled: true,
+            ..TestCase::default()
+        },
+    );
+
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Source Serif 4 Variable").unwrap(),
+        "dark_serif.png",
+        TestCase {
+            foreground_color: css::WHITE,
+            background_color: css::BLACK,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Source Serif 4 Variable").unwrap(),
+        "dark_serif_hinted.png",
+        TestCase {
+            hinting_enabled: true,
+            foreground_color: css::WHITE,
+            background_color: css::BLACK,
+            ..TestCase::default()
+        },
+    );
+
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Source Serif 4 Variable").unwrap(),
+        "dark_serif_stem_darkening_gamma.png",
+        TestCase {
+            stem_darkening: true,
+            gamma_correction: true,
+            foreground_color: css::WHITE,
+            background_color: css::BLACK,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Source Serif 4 Variable").unwrap(),
+        "dark_serif_stem_darkening_gamma_hinted.png",
+        TestCase {
+            stem_darkening: true,
+            gamma_correction: true,
+            hinting_enabled: true,
+            foreground_color: css::WHITE,
+            background_color: css::BLACK,
+            ..TestCase::default()
+        },
+    );
 
     text_case(
         &mut layout_cx,
@@ -50,6 +153,7 @@ fn main() {
             ..TestCase::default()
         },
     );
+
     text_case(
         &mut layout_cx,
         &mut font_cx,
@@ -404,6 +508,19 @@ fn main() {
         &mut font_cx,
         &outputs_folder,
         FontFamily::parse("Roboto").unwrap(),
+        "roboto_stem_darkening_gamma_hinted.png",
+        TestCase {
+            stem_darkening: true,
+            gamma_correction: true,
+            hinting_enabled: true,
+            ..TestCase::default()
+        },
+    );
+    text_case(
+        &mut layout_cx,
+        &mut font_cx,
+        &outputs_folder,
+        FontFamily::parse("Roboto").unwrap(),
         "roboto_stem_darkening_24.png",
         TestCase {
             stem_darkening: true,
@@ -416,11 +533,12 @@ fn main() {
         &mut font_cx,
         &outputs_folder,
         FontFamily::parse("Roboto").unwrap(),
-        "roboto_stem_darkening_dark_bg.png",
+        "roboto_stem_darkening_gamma_dark_bg.png",
         TestCase {
             stem_darkening: true,
             foreground_color: css::WHITE,
             background_color: css::BLACK,
+            gamma_correction: true,
             ..TestCase::default()
         },
     );
@@ -446,7 +564,7 @@ impl Default for TestCase {
             gamma_correction: false,
             foreground_color: Color::BLACK,
             background_color: Color::WHITE,
-            font_size: 12.,
+            font_size: 10.,
             rotation: 0.,
             stem_darkening: false,
         }
@@ -630,7 +748,7 @@ fn build_layout(
     }));
 
     let mut layout: Layout<ColorBrush> = builder.build(text);
-    let max_advance = None;
+    let max_advance = Some(1000.);
     layout.break_all_lines(max_advance);
     layout.align(max_advance, Alignment::Start, AlignmentOptions::default());
 
